@@ -25,3 +25,9 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+    import os
+# Update the database configuration
+database_url = os.environ.get('DATABASE_URL' )
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://')
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or "sqlite:///fire_fighting.db"
