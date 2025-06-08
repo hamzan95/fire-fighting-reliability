@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Fire Fighting System Reliability{% endblock %}
+
+{% block head %}
+<style>
+    .trend-selector {
+        margin-bottom: 20px;
+    }
+    .chart-container {
+        height: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="text-center mb-3">Fire Fighting System Reliability Dashboard</h1>
+
+<!-- KPI Cards -->
+<div class="kpi-container">
+    <!-- Testing Compliance KPI -->
+    <div class="kpi-card kpi-testing">
+        <div class="kpi-title">Testing Compliance</div>
+        <div class="kpi-value" id="testing-compliance-value">0.00%</div>
+        <div class="kpi-target">Target: 90.00%</div>
+        <div class="kpi-status" id="testing-compliance-status">STATUS: IN PROGRESS</div>
+    </div>
+    
+    <!-- Inspection Compliance KPI -->
+    <div class="kpi-card kpi-inspection">
+        <div class="kpi-title">Inspection Compliance</div>
+        <div class="kpi-value" id="inspection-compliance-value">0.00%</div>
+        <div class="kpi-target">Target: 95.00%</div>
+        <div class="kpi-status" id="inspection-compliance-status">STATUS: IN PROGRESS</div>
+    </div>
+    
+    <!-- Coverage Ratio KPI -->
+    <div class="kpi-card kpi-coverage">
+        <div class="kpi-title">Coverage Ratio</div>
+        <div class="kpi-value" id="coverage-ratio-value">0.00%</div>
+        <div class="kpi-target">Target: 85.00%</div>
+        <div class="kpi-status" id="coverage-ratio-status">STATUS: IN PROGRESS</div>
+    </div>
+    
+    <!-- Effective Reliability KPI -->
+    <div class="kpi-card kpi-reliability">
+        <div class="kpi-title">Effective Reliability</div>
+        <div class="kpi-value" id="effective-reliability-value">0.00%</div>
+        <div class="kpi-target">Target: 80.00%</div>
+        <div class="kpi-status" id="effective-reliability-status">STATUS: IN PROGRESS</div>
+    </div>
+</div>
+
+<!-- Distribution Charts -->
+<h2 class="text-center mb-3">Distribution Analysis</h2>
+<div class="chart-row">
+    <div class="chart-col">
+        <div class="chart-container">
+            <div class="chart-title">Coverage Status Distribution</div>
+            <canvas id="coverage-chart"></canvas>
+        </div>
+    </div>
+    <div class="chart-col">
+        <div class="chart-container">
+            <div class="chart-title">Inspection Status Distribution</div>
+            <canvas id="inspection-chart"></canvas>
+        </div>
+    </div>
+    <div class="chart-col">
+        <div class="chart-container">
+            <div class="chart-title">Testing Status Distribution</div>
+            <canvas id="testing-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Trend Analysis -->
+<h2 class="text-center mb-3">Trend Analysis</h2>
+<div class="trend-selector text-center">
+    <label for="trend-period">Select Trend Period:</label>
+    <select id="trend-period" class="form-select" style="max-width: 200px; display: inline-block;">
+        <option value="weekly">Weekly</option>
+        <option value="monthly" selected>Monthly</option>
+        <option value="yearly">Yearly</option>
+    </select>
+</div>
+
+<div class="chart-container">
+    <div class="chart-title" id="trend-chart-title">Monthly Compliance and Reliability Trends</div>
+    <div id="trend-chart-container">
+        <canvas id="trend-chart"></canvas>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mt-3">
+    <div class="card-header">Quick Actions</div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary">Add New Substation</a>
+            <a href="{{ url_for('main.add_inspection') }}" class="btn btn-success">Record Inspection/Test</a>
+            <a href="{{ url_for('main.metrics') }}" class="btn btn-primary">View Detailed Metrics</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/visualization.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Substations - Fire Fighting System Reliability{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Substations</h1>
+    <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary">Add New Substation</a>
+</div>
+
+<div class="card">
+    <div class="card-header">Substation List</div>
+    <div class="card-body">
+        {% if substations %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Substation ID</th>
+                    <th>Name</th>
+                    <th>Coverage Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for substation in substations %}
+                <tr>
+                    <td>{{ substation.substation_id }}</td>
+                    <td>{{ substation.substation_name }}</td>
+                    <td>{{ substation.coverage_status }}</td>
+                    <td>
+                        <a href="{{ url_for('main.edit_substation', substation_id=substation.substation_id) }}" class="btn btn-sm btn-primary">Edit</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-warning">
+            No substations found. Please add a substation to get started.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

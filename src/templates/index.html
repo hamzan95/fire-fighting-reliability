@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Fire Fighting System Reliability{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">Welcome to Fire Fighting System Reliability</div>
+    <div class="card-body">
+        <h2>Fire Fighting System Reliability Monitoring Application</h2>
+        <p>This application helps you track and analyze the reliability of fire fighting systems across your substations.</p>
+        
+        <div class="mt-3">
+            <h3>Quick Links</h3>
+            <ul>
+                <li><a href="{{ url_for('main.dashboard') }}">View Dashboard</a> - See current reliability metrics and trends</li>
+                <li><a href="{{ url_for('main.add_substation') }}">Add New Substation</a> - Register a new substation in the system</li>
+                <li><a href="{{ url_for('main.add_inspection') }}">Record Inspection/Test</a> - Enter daily inspection and test results</li>
+                <li><a href="{{ url_for('main.metrics') }}">View Metrics History</a> - See historical reliability data</li>
+            </ul>
+        </div>
+        
+        <div class="mt-3">
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
