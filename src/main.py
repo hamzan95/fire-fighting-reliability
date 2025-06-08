@@ -9,7 +9,13 @@ from datetime import date
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fire_fighting_reliability_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USERNAME', 'root')}:{os.getenv('DB_PASSWORD', 'password')}@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '3306')}/{os.getenv('DB_NAME', 'mydb')}"
+
+# PostgreSQL configuration for Render.com
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://')
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or "sqlite:///fire_fighting.db"
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize database
@@ -24,10 +30,4 @@ with app.app_context():
     print("Database tables created successfully")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
-    import os
-# Update the database configuration
-database_url = os.environ.get('DATABASE_URL' )
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://')
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or "sqlite:///fire_fighting.db"
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
