@@ -6,30 +6,21 @@ from flask import Flask, render_template
 from src.models.substation import db, Substation, InspectionTest, ReliabilityMetric
 from src.routes.main import main_bp
 from datetime import date
-from flask_login import LoginManager, UserMixin, current_user, login_required
+# Assuming you have login_manager, import it here
+# from flask_login import LoginManager # Uncomment and add this if you use Flask-Login
 
-# Initialize LoginManager
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'auth.login'  # Specify your login route
-
-# User loader callback
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fire_fighting_reliability_secret_key'
-
-# PostgreSQL configuration for Render.com
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://')
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or "sqlite:///fire_fighting.db"
-
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USERNAME', 'root')}:{os.getenv('DB_PASSWORD', 'password')}@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '3306')}/{os.getenv('DB_NAME', 'mydb')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize database
 db.init_app(app)
+
+# If you are using Flask-Login, initialize it AFTER 'app' is defined
+# login_manager = LoginManager() # Uncomment if using Flask-Login
+# login_manager.init_app(app)    # Uncomment if using Flask-Login
+# login_manager.login_view = 'main.login' # Example, adjust as needed
 
 # Register blueprints
 app.register_blueprint(main_bp)
@@ -40,4 +31,4 @@ with app.app_context():
     print("Database tables created successfully")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)
