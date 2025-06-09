@@ -18,17 +18,18 @@ class Substation(db.Model):
         return f'<Substation {self.substation_id}: {self.substation_name}>'
 
 class InspectionTest(db.Model):
-    """Model for inspection and test data"""
     id = db.Column(db.Integer, primary_key=True)
-    substation_id = db.Column(db.String(20), db.ForeignKey('substation.substation_id'), nullable=False)
-    inspection_status = db.Column(db.String(20), nullable=False)  # Inspected, Not Inspected
-    testing_status = db.Column(db.String(20), nullable=False)  # Tested, Not Tested
+    substation_id = db.Column(db.Integer, db.ForeignKey('substation.id'), nullable=False)
     inspection_date = db.Column(db.Date, nullable=False)
-    notes = db.Column(db.Text, nullable=True)
+    testing_date = db.Column(db.Date, nullable=True)  # New field for testing date
+    inspection_status = db.Column(db.String(20), nullable=False)
+    testing_status = db.Column(db.String(20), nullable=True)  # New field for testing status
+    notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Link to user who created the record
     
-    def __repr__(self):
-        return f'<InspectionTest for {self.substation_id} on {self.inspection_date}>'
+    substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
+    user = db.relationship('User', backref=db.backref('inspections', lazy=True))
 
 class ReliabilityMetric(db.Model):
     """Model for calculated reliability metrics"""
