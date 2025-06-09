@@ -3,40 +3,93 @@
 {% block title %}Inspections - Fire Fighting System Reliability{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>Inspections & Tests</h1>
-    <a href="{{ url_for('main.add_inspection') }}" class="btn btn-primary">Record New Inspection/Test</a>
-</div>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Inspections & Tests</h1>
+        <div>
+            <a href="{{ url_for('main.add_inspection') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Record New Inspection/Test
+            </a>
+        </div>
+    </div>
 
-<div class="card">
-    <div class="card-header">Inspection & Test Records</div>
-    <div class="card-body">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Inspection & Test Records</span>
+                <div class="small">Total: {{ inspections|length }}</div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if inspections %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Substation</th>
+                            <th>Inspection</th>
+                            <th>Testing</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inspection in inspections %}
+                        <tr>
+                            <td>{{ inspection.inspection_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <a href="{{ url_for('main.substation_detail', id=inspection.substation.id) }}">
+                                    {{ inspection.substation.substation_id }} - {{ inspection.substation.substation_name }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if inspection.inspection_status == 'Completed' %}bg-success
+                                    {% elif inspection.inspection_status == 'Pending' %}bg-warning text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ inspection.inspection_status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if inspection.testing_status %}
+                                <span class="badge 
+                                    {% if inspection.testing_status == 'Completed' %}bg-success
+                                    {% elif inspection.testing_status == 'Pending' %}bg-warning text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ inspection.testing_status }}
+                                </span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">Not Tested</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-truncate" style="max-width: 200px;" title="{{ inspection.notes }}">
+                                {{ inspection.notes or '-' }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.edit_inspection', id=inspection.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No inspection records found. 
+                    <a href="{{ url_for('main.add_inspection') }}" class="alert-link">Add your first inspection</a> to get started.
+                </div>
+            </div>
+            {% endif %}
+        </div>
         {% if inspections %}
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Substation ID</th>
-                    <th>Inspection Status</th>
-                    <th>Testing Status</th>
-                    <th>Notes</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for inspection in inspections %}
-                <tr>
-                    <td>{{ inspection.inspection_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ inspection.substation_id }}</td>
-                    <td>{{ inspection.inspection_status }}</td>
-                    <td>{{ inspection.testing_status }}</td>
-                    <td>{{ inspection.notes or '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="alert alert-warning">
-            No inspection records found. Please add an inspection record to get started.
+        <div class="card-footer text-muted small">
+            Last updated: {{ now.strftime('%Y-%m-%d %H:%M') }}
         </div>
         {% endif %}
     </div>
