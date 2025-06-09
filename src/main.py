@@ -14,11 +14,12 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fire_fighting_reliability_secret_key'
 
 # PostgreSQL configuration for Render.com
+
+import os
 database_url = os.environ.get('DATABASE_URL')
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://')
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or "sqlite:///fire_fighting.db"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize database
 db.init_app(app)
