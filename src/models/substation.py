@@ -30,9 +30,7 @@ class InspectionTest(db.Model):
     
     substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
     user = db.relationship('User', backref=db.backref('inspections', lazy=True))
-    
-    def __repr__(self):
-        return f'<InspectionTest for {self.substation_id} on {self.inspection_date}>'
+
 
 
 class ReliabilityMetric(db.Model):
