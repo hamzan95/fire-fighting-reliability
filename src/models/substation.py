@@ -11,8 +11,8 @@ class Substation(db.Model):
     coverage_status = db.Column(db.String(20), nullable=False)  # Fully Covered, Partially Covered, Not Covered
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Define relationship to inspection tests (only define it once here)
-    inspections = db.relationship('InspectionTest', backref='substation', lazy=True)
+    # Relationship to inspections (parent side)
+    inspections = db.relationship('InspectionTest', back_populates='substation', lazy=True)
     
     def __repr__(self):
         return f'<Substation {self.substation_id}: {self.substation_name}>'
@@ -28,8 +28,18 @@ class InspectionTest(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
-    # Remove the redundant relationship definition here
-    user = db.relationship('User', backref=db.backref('inspections', lazy=True))
+    # Relationships (child side)
+    substation = db.relationship('Substation', back_populates='inspections')
+    user = db.relationship('User', backref='inspections')
+    
+    def __repr__(self):
+        return f'<InspectionTest {self.id} for Substation {self.substation_id}>'
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    # No need to define inspections relationship here as it's handled by backref
 
 class ReliabilityMetric(db.Model):
     """Model for calculated reliability metrics"""
