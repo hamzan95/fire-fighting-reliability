@@ -6,7 +6,17 @@ from flask import Flask, render_template
 from src.models.substation import db, Substation, InspectionTest, ReliabilityMetric
 from src.routes.main import main_bp
 from datetime import date
+from flask_login import LoginManager, UserMixin, current_user, login_required
 
+# Initialize LoginManager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login'  # Specify your login route
+
+# User loader callback
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fire_fighting_reliability_secret_key'
 
