@@ -11,7 +11,7 @@ from datetime import date
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fire_fighting_reliability_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USERNAME', 'fire_fighting_db_t37y_user')}:{os.getenv('DB_PASSWORD', 'S539wVuldErXytoQweAqrYAxG69PdyoH')}@{os.getenv('DB_HOST', 'postgresql://fire_fighting_db_t37y_user:S539wVuldErXytoQweAqrYAxG69PdyoH@dpg-d13egt3e5dus73em3sag-a/fire_fighting_db_t37y')}:{os.getenv('DB_PORT', '3306')}/{os.getenv('DB_NAME', 'fire_fighting_db_t37y')}"
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USERNAME', 'fire_fighting_db_t37y_user')}:{os.getenv('DB_PASSWORD', 'S539wVuldErXytoQweAqrYAxG69PdyoH')}@{os.getenv('DB_HOST', 'postgresql://fire_fighting_db_t37y_user:S539wVuldErXytoQweAqrYAxG69PdyoH@dpg-d13egt3e5dus73em3sag-a/fire_fighting_db_t37y')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'fire_fighting_db_t37y')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize database
