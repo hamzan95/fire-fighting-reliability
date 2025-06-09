@@ -10,6 +10,27 @@
 </head>
 <body>
     <nav class="navbar">
+        <!-- Add this to your navigation bar -->
+<ul class="navbar-nav ms-auto">
+    {% if current_user.is_authenticated %}
+        {% if current_user.is_admin() %}
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.users') }}">User Management</a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+            <span class="nav-link">Welcome, {{ current_user.username }}</span>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+        </li>
+    {% else %}
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+        </li>
+    {% endif %}
+</ul>
+
         <div class="navbar-container">
             <a href="{{ url_for('main.index') }}" class="navbar-brand">Fire Fighting System Reliability</a>
             <ul class="navbar-nav">
