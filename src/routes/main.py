@@ -3,100 +3,70 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload # Make sure this is imported
+from sqlalchemy.orm import joinedload # Ensure this import is present if you use it for eager loading
 
 from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
-from src.models.user import Role, User # Make sure User is imported here if you use it in this file
-from src.forms.substation_forms import SubstationForm
+from src.models.user import Role
+from src.forms.substation_forms import SubstationForm # Ensure this import is present
 
 
-main_bp = Blueprint("main", __name__) # This should be the *only* place main_bp is defined
-
-@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
-@login_required
-def delete_substation(id):
-    # Ensure only administrators or authorized users can delete substations
-    if not current_user.is_admin(): # Or current_user.is_inspector() if inspectors can delete
-        flash("You do not have permission to delete substations.", "danger")
-        return redirect(url_for("main.substations"))
-
-    substation = Substation.query.get_or_404(id)
-
-    try:
-        # Before deleting the substation, you should consider what to do with
-        # related records (e.g., InspectionTest, ReliabilityMetric).
-        # SQLAlchemy's `cascade` and `passive_deletes` options on relationships
-        # can handle this automatically, but if you don't have them set up,
-        # you might need to manually delete related records first or set them to NULL.
-        # For this example, let's assume cascade delete is NOT set up and we'll
-        # show how to delete related inspection tests.
-        
-        # Delete related inspection tests first
-        InspectionTest.query.filter_by(substation_id=id).delete()
-        
-        # Note: ReliabilityMetric usually isn't directly linked 1-to-1 with a substation,
-        # so you might not need to delete those. If it were, you'd handle it similarly.
-
-        db.session.delete(substation)
-        db.session.commit()
-        flash(f"Substation '{substation.name}' and its related inspection records deleted successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error deleting substation: {e}", "danger")
-
-    return redirect(url_for("main.substations"))
-
-# ... rest of your routes (dashboard, substations, add_substation, edit_substation, inspections, etc.) ...
+main_bp = Blueprint("main", __name__)
 
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
-    # ... (Your existing dashboard logic) ...
+    # Calculate current metrics
     total_substations = Substation.query.count()
-    
+
     fully_covered = Substation.query.filter_by(coverage_status="Fully Covered").count()
     partially_covered = Substation.query.filter_by(coverage_status="Partially Covered").count()
-    
+
     inspected_substations = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.inspection_status == "Inspected").scalar()
     tested_substations = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Tested").scalar()
 
+    # Handle division by zero
     if total_substations == 0:
         coverage_ratio = 0
         inspection_compliance = 0
         testing_compliance = 0
     else:
         coverage_ratio = (fully_covered + partially_covered * 0.5) / total_substations
-        inspection_compliance = inspected_substations / total_substations
-        testing_compliance = tested_substations / total_substations
+        inspection_compliance = (inspected_substations if inspected_substations is not None else 0) / total_substations
+        testing_compliance = (tested_substations if tested_substations is not None else 0) / total_substations
 
-    effective_reliability = (0.4 * coverage_ratio) + (0.3 * inspection_compliance) + (0.3 * testing_compliance)
-    
-    coverage_data = {
-        "Fully Covered": fully_covered,
-        "Partially Covered": partially_covered,
-        "Not Covered": total_substations - fully_covered - partially_covered
-    }
+    # Effective Reliability Calculation
+    # Assuming full compliance and coverage means 100% reliability
+    effective_reliability = (coverage_ratio * inspection_compliance * testing_compliance) * 100
 
-    inspection_data = {
-        "Inspected": inspected_substations,
-        "Not Inspected": total_substations - inspected_substations
-    }
+    # Ensure all values are floats for JSON serialization
+    coverage_ratio = round(coverage_ratio * 100, 2)
+    inspection_compliance = round(inspection_compliance * 100, 2)
+    testing_compliance = round(testing_compliance * 100, 2)
+    effective_reliability = round(effective_reliability, 2)
 
-    testing_data = {
-        "Tested": tested_substations,
-        "Not Tested": total_substations - tested_substations
-    }
 
-    return render_template("dashboard.html", 
+    # Chart Data (for dashboard.html)
+    coverage_data_raw = db.session.query(Substation.coverage_status, func.count(Substation.id)).group_by(Substation.coverage_status).all()
+    coverage_data = {status: count for status, count in coverage_data_raw}
+
+    inspection_data_raw = db.session.query(InspectionTest.inspection_status, func.count(InspectionTest.id)).group_by(InspectionTest.inspection_status).all()
+    inspection_data = {status: count for status, count in inspection_data_raw}
+
+    testing_data_raw = db.session.query(InspectionTest.testing_status, func.count(InspectionTest.id)).filter(InspectionTest.testing_status.isnot(None)).group_by(InspectionTest.testing_status).all()
+    testing_data = {status: count for status, count in testing_data_raw}
+
+
+    return render_template("dashboard.html",
                            total_substations=total_substations,
-                           effective_reliability=effective_reliability * 100, # Convert to percentage
-                           testing_compliance=testing_compliance * 100, # Convert to percentage
-                           inspection_compliance=inspection_compliance * 100, # Convert to percentage
+                           effective_reliability=effective_reliability,
+                           testing_compliance=testing_compliance,
+                           inspection_compliance=inspection_compliance,
                            coverage_data=coverage_data,
                            inspection_data=inspection_data,
                            testing_data=testing_data)
+
 
 @main_bp.route("/substations")
 @login_required
@@ -108,42 +78,75 @@ def substations():
 @login_required
 def add_substation():
     if not current_user.is_inspector():
-        flash("You do not have permission to add substations", "danger")
-        return redirect(url_for("main.dashboard"))
-        
+        flash("You do not have permission to add substations.", "danger")
+        return redirect(url_for("main.substations"))
+
     form = SubstationForm()
     if form.validate_on_submit():
-        new_substation = Substation(name=form.name.data, coverage_status=form.coverage_status.data)
-        db.session.add(new_substation)
-        db.session.commit()
-        flash("Substation added successfully!", "success")
-        return redirect(url_for("main.substations"))
+        new_substation = Substation(
+            name=form.name.data,
+            coverage_status=form.coverage_status.data
+        )
+        try:
+            db.session.add(new_substation)
+            db.session.commit()
+            flash("Substation added successfully!", "success")
+            return redirect(url_for("main.substations"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error adding substation: {e}", "danger")
     return render_template("add_substation.html", form=form)
+
 
 @main_bp.route("/edit_substation/<int:id>", methods=["GET", "POST"])
 @login_required
 def edit_substation(id):
     if not current_user.is_inspector():
-        flash("You do not have permission to edit substations", "danger")
-        return redirect(url_for("main.dashboard"))
-        
+        flash("You do not have permission to edit substations.", "danger")
+        return redirect(url_for("main.substations"))
+
     substation = Substation.query.get_or_404(id)
-    form = SubstationForm(obj=substation)
+    form = SubstationForm(obj=substation) # Pre-populate form with existing data
 
     if form.validate_on_submit():
         substation.name = form.name.data
         substation.coverage_status = form.coverage_status.data
-        db.session.commit()
-        flash("Substation updated successfully!", "success")
-        return redirect(url_for("main.substations"))
-    
+        try:
+            db.session.commit()
+            flash(f"Substation '{substation.name}' updated successfully!", "success")
+            return redirect(url_for("main.substations"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating substation: {e}", "danger")
+
     return render_template("edit_substation.html", form=form, substation=substation)
 
+
+@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
+@login_required
+def delete_substation(id):
+    if not current_user.is_admin():
+        flash("You do not have permission to delete substations.", "danger")
+        return redirect(url_for("main.substations"))
+
+    substation = Substation.query.get_or_404(id)
+
+    try:
+        # Delete related inspection tests first to maintain integrity if no cascade is set
+        InspectionTest.query.filter_by(substation_id=id).delete()
+        db.session.delete(substation)
+        db.session.commit()
+        flash(f"Substation '{substation.name}' and its related inspection records deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting substation: {e}", "danger")
+
+    return redirect(url_for("main.substations"))
 
 @main_bp.route("/inspections")
 @login_required
 def inspections():
-    # Corrected line for eager loading related data
+    # Fetch inspections with related substation and user data *eager loaded*
     inspections = InspectionTest.query.options(joinedload(InspectionTest.substation), joinedload(InspectionTest.user)).all()
     return render_template("inspections.html", inspections=inspections)
 
@@ -151,9 +154,9 @@ def inspections():
 @login_required
 def add_inspection():
     if not current_user.is_inspector():
-        flash("You do not have permission to add inspection records", "danger")
-        return redirect(url_for("main.dashboard"))
-    
+        flash("You do not have permission to add inspection records.", "danger")
+        return redirect(url_for("main.inspections"))
+
     substations = Substation.query.all()
     if request.method == "POST":
         substation_id = request.form.get("substation_id")
@@ -183,15 +186,16 @@ def add_inspection():
         except Exception as e:
             db.session.rollback()
             flash(f"Error adding inspection record: {e}", "danger")
-    
+
     return render_template("add_inspection.html", substations=substations)
 
 @main_bp.route("/metrics")
 @login_required
 def metrics():
     # Weekly Trend
+    # Using func.to_char for PostgreSQL compatibility
     _weekly_metrics = db.session.query(
-        func.strftime("%Y-%W", ReliabilityMetric.date).label("week"),
+        func.to_char(ReliabilityMetric.date, "YYYY-IW").label("week"), # Changed to YYYY-IW for ISO week
         func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
         func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
         func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
@@ -211,6 +215,7 @@ def metrics():
         })
 
     # Monthly Trend
+    # Using func.to_char for PostgreSQL compatibility
     _monthly_metrics = db.session.query(
         func.to_char(ReliabilityMetric.date, "YYYY-MM").label("month"),
         func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
@@ -232,6 +237,7 @@ def metrics():
         })
 
     # Yearly Trend
+    # Using func.to_char for PostgreSQL compatibility
     _yearly_metrics = db.session.query(
         func.to_char(ReliabilityMetric.date, "YYYY").label("year"),
         func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
@@ -240,7 +246,7 @@ def metrics():
         func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
         func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
     ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365*5))).group_by("year").order_by("year").all()
-    
+
     yearly_metrics = []
     for year_data in _yearly_metrics:
         yearly_metrics.append({
@@ -252,7 +258,7 @@ def metrics():
             'avg_effective_reliability': year_data.avg_effective_reliability
         })
 
-    return render_template("metrics.html", 
+    return render_template("metrics.html",
                            weekly_metrics=weekly_metrics,
                            monthly_metrics=monthly_metrics,
                            yearly_metrics=yearly_metrics)
