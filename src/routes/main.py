@@ -1,24 +1,72 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required, current_user
+# main.py
+import os
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import LoginManager, current_user, login_required
 from datetime import datetime, date, timedelta
 from sqlalchemy import func
-from src.models.substation import db, Substation, InspectionTest, ReliabilityMetric
-from src.models.user import Role
-from src.forms.substation_forms import SubstationForm # <--- ADD THIS IMPORT
-from src.forms.auth_forms import RegistrationForm # Keep this if you register users from main.py
 
-main_bp = Blueprint("main", __name__)
+from src.extensions import db
+from src.models.substation import Substation, InspectionTest, ReliabilityMetric
+from src.models.user import Role # User is imported locally where needed to avoid circular imports
+from src.routes.main import main_bp
+from src.routes.auth import auth_bp
+from src.forms.substation_forms import SubstationForm
+
+def create_app():
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fire_fighting_reliability_secret_key")
+
+    # PostgreSQL configuration for Render.com
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://")
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///fire_fighting.db"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # Initialize extensions
+    db.init_app(app)
+
+    # Initialize Flask-Login
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        from src.models.user import User  # Import here to avoid circular imports
+        return User.query.get(int(user_id))
+
+    # Register blueprints
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
+
+    # Create tables and admin user within app context
+    with app.app_context():
+        db.create_all()
+        from src.models.user import User, Role
+        admin = User.query.filter_by(username="admin").first()
+        if not admin:
+            admin = User(username="admin", email="admin@example.com", role=Role.ADMIN)
+            admin.set_password("admin123")  # Change this to a secure password
+            db.session.add(admin)
+            db.session.commit()
+            print("Admin user created")
+
+        print("Database tables created successfully")
+
+    return app
+
+app = create_app()
 
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
-    # ... (Your existing dashboard logic remains the same) ...
     total_substations = Substation.query.count()
-    
+
     fully_covered = Substation.query.filter_by(coverage_status="Fully Covered").count()
     partially_covered = Substation.query.filter_by(coverage_status="Partially Covered").count()
-    
+
     inspected_substations = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.inspection_status == "Inspected").scalar()
     tested_substations = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Tested").scalar()
 
@@ -31,28 +79,35 @@ def dashboard():
         inspection_compliance = inspected_substations / total_substations
         testing_compliance = tested_substations / total_substations
 
-    effective_reliability = (coverage_ratio + inspection_compliance + testing_compliance) / 3 * 100 if total_substations > 0 else 0
+    # Effective Reliability Calculation (example, adjust as needed)
+    effective_reliability = (coverage_ratio + inspection_compliance + testing_compliance) / 3 * 100
 
-    # Data for charts (assuming these are dicts from your current logic)
+    # Data for charts
     coverage_data = {
         "Fully Covered": fully_covered,
         "Partially Covered": partially_covered,
         "Not Covered": total_substations - fully_covered - partially_covered
     }
+
     inspection_data = {
         "Inspected": inspected_substations,
-        "Not Inspected": total_substations - inspected_substations # Assuming all other substations are 'Not Inspected' for simplicity
+        "Not Inspected": total_substations - inspected_substations
     }
+
+    tested_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Tested").scalar()
+    not_tested_count = total_substations - tested_count
+
     testing_data = {
-        "Tested": tested_substations,
-        "Not Tested": total_substations - tested_substations # Assuming all other substations are 'Not Tested' for simplicity
+        "Tested": tested_count,
+        "Not Tested": not_tested_count
     }
 
     return render_template("dashboard.html",
                            total_substations=total_substations,
                            effective_reliability=effective_reliability,
-                           testing_compliance=testing_compliance * 100, # Display as percentage
-                           inspection_compliance=inspection_compliance * 100, # Display as percentage
+                           coverage_ratio=coverage_ratio * 100,
+                           inspection_compliance=inspection_compliance * 100,
+                           testing_compliance=testing_compliance * 100,
                            coverage_data=coverage_data,
                            inspection_data=inspection_data,
                            testing_data=testing_data)
@@ -60,198 +115,81 @@ def dashboard():
 @main_bp.route("/substations")
 @login_required
 def substations():
-    if not current_user.is_inspector():
-        flash("You do not have permission to view this page.", "danger")
-        return redirect(url_for("main.dashboard"))
-    
-    substations = Substation.query.all()
-    
-    # Create a delete form instance for CSRF token
-    # You would typically have a form per row if you want to submit a delete for each item.
-    # For simplicity, we'll create one here and demonstrate its use.
-    delete_form = DeleteSubstationForm() 
-    
-    return render_template("substations.html", substations=substations, delete_form=delete_form)
-
-# Add a delete route
-@main_bp.route("/substation/delete/<int:id>", methods=["POST"])
-@login_required
-def delete_substation(id):
-    if not current_user.is_admin(): # Only admin can delete
-        flash("You do not have permission to delete substations.", "danger")
-        return redirect(url_for("main.substations"))
-    
-    substation = Substation.query.get_or_404(id)
-    form = DeleteSubstationForm()
-    if form.validate_on_submit(): # Check CSRF token
-        try:
-            db.session.delete(substation)
-            db.session.commit()
-            flash(f"Substation '{substation.name}' deleted successfully.", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Error deleting substation: {str(e)}", "danger")
-    else:
-        flash("Invalid request or CSRF token missing.", "danger")
-    return redirect(url_for("main.substations"))
-
+    _substations = Substation.query.all()
+    # Serialize substations to a list of dictionaries to pass to the template
+    substations_data = []
+    for sub in _substations:
+        substations_data.append({
+            'id': sub.id,
+            'name': sub.name,
+            'coverage_status': sub.coverage_status
+        })
+    return render_template("substations.html", substations=substations_data)
 
 @main_bp.route("/add_substation", methods=["GET", "POST"])
 @login_required
 def add_substation():
     if not current_user.is_admin():
-        flash("You do not have permission to add substations.", "danger")
+        flash("You do not have permission to add substations", "danger")
         return redirect(url_for("main.substations"))
 
-    form = SubstationForm() # <--- Use the new form
+    form = SubstationForm()
     if form.validate_on_submit():
-        substation = Substation(
-            name=form.name.data,
-            coverage_status=form.coverage_status.data
-        )
-        db.session.add(substation)
+        name = form.name.data
+        coverage_status = form.coverage_status.data
+        new_substation = Substation(name=name, coverage_status=coverage_status)
+        db.session.add(new_substation)
         db.session.commit()
         flash("Substation added successfully!", "success")
         return redirect(url_for("main.substations"))
-    
-    return render_template("add_substation.html", title="Add Substation", form=form) # Pass the form to the template
+    return render_template("add_substation.html", form=form)
 
-# --- START NEW ROUTES FOR EDIT/DELETE SUBSTATION ---
 
 @main_bp.route("/edit_substation/<int:id>", methods=["GET", "POST"])
 @login_required
 def edit_substation(id):
     if not current_user.is_admin():
-        flash("You do not have permission to edit substations.", "danger")
+        flash("You do not have permission to edit substations", "danger")
         return redirect(url_for("main.substations"))
 
     substation = Substation.query.get_or_404(id)
-    form = SubstationForm()
-
+    form = SubstationForm(obj=substation)
     if form.validate_on_submit():
         substation.name = form.name.data
         substation.coverage_status = form.coverage_status.data
         db.session.commit()
-        flash(f"Substation '{substation.name}' updated successfully!", "success")
+        flash("Substation updated successfully!", "success")
         return redirect(url_for("main.substations"))
-    elif request.method == "GET":
-        # Pre-fill form fields with existing substation data
-        form.name.data = substation.name
-        form.coverage_status.data = substation.coverage_status
-    
-    return render_template("edit_substation.html", title="Edit Substation", form=form, substation=substation)
+    return render_template("edit_substation.html", form=form, substation=substation)
 
-
-@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
-@login_required
-def delete_substation(id):
-    if not current_user.is_admin():
-        flash("You do not have permission to delete substations.", "danger")
-        return redirect(url_for("main.substations"))
-
-    substation = Substation.query.get_or_404(id)
-    try:
-        db.session.delete(substation)
-        db.session.commit()
-        flash(f"Substation '{substation.name}' deleted successfully!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error deleting substation: {e}", "danger")
-    
-    return redirect(url_for("main.substations"))
-
-# --- END NEW ROUTES ---
-
-# ... (rest of your main.py routes like metrics, add_inspection, etc. remain here) ...
-
-@main_bp.route("/metrics")
-@login_required
-def metrics():
-    # Weekly Trend (last 12 weeks)
-    weekly_metrics = db.session.query(
-        func.strftime("%W", ReliabilityMetric.date).label("week"),
-        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
-        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
-        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
-        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
-        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
-    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(weeks=12))).group_by("week").order_by("week").all()
-    
-    # Convert weekly metrics to a list of dictionaries for easier JavaScript consumption
-    _weekly_metrics = []
-    for week_data in weekly_metrics:
-        _weekly_metrics.append({
-            'date': f"Week {week_data.week}", # Adjust label for Chart.js
-            'reliability_score': week_data.avg_reliability,
-            'testing_compliance': week_data.avg_testing_compliance,
-            'inspection_compliance': week_data.avg_inspection_compliance,
-            'coverage_ratio': week_data.avg_coverage_ratio,
-            'effective_reliability': week_data.avg_effective_reliability
-        })
-
-    # Monthly Trend (last 12 months)
-    monthly_metrics = db.session.query(
-        func.strftime("%Y-%m", ReliabilityMetric.date).label("month"),
-        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
-        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
-        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
-        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
-        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
-    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365))).group_by("month").order_by("month").all()
-
-    _monthly_metrics = []
-    for month_data in monthly_metrics:
-        _monthly_metrics.append({
-            'month': month_data.month,
-            'avg_reliability': month_data.avg_reliability,
-            'avg_testing_compliance': month_data.avg_testing_compliance,
-            'avg_inspection_compliance': month_data.avg_inspection_compliance,
-            'avg_coverage_ratio': month_data.avg_coverage_ratio,
-            'avg_effective_reliability': month_data.avg_effective_reliability
-        })
-
-    # Yearly Trend (last 5 years)
-    yearly_metrics = db.session.query(
-        func.strftime("%Y", ReliabilityMetric.date).label("year"),
-        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
-        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
-        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
-        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
-        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
-    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365*5))).group_by("year").order_by("year").all()
-    
-    _yearly_metrics = []
-    for year_data in yearly_metrics:
-        _yearly_metrics.append({
-            'year': year_data.year,
-            'avg_reliability': year_data.avg_reliability,
-            'avg_testing_compliance': year_data.avg_testing_compliance,
-            'avg_inspection_compliance': year_data.avg_inspection_compliance,
-            'avg_coverage_ratio': year_data.avg_coverage_ratio,
-            'avg_effective_reliability': year_data.avg_effective_reliability
-        })
-
-    return render_template("metrics.html",
-                           weekly_metrics=_weekly_metrics,
-                           monthly_metrics=_monthly_metrics,
-                           yearly_metrics=_yearly_metrics)
 
 @main_bp.route("/inspections")
 @login_required
 def inspections():
-    inspections = InspectionTest.query.order_by(InspectionTest.created_at.desc()).all()
-    return render_template("inspections.html", inspections=inspections)
+    _inspections = InspectionTest.query.all()
+    inspections_data = []
+    for inspection in _inspections:
+        inspections_data.append({
+            'substation': {'name': inspection.substation.name},
+            'inspection_date': inspection.inspection_date,
+            'testing_date': inspection.testing_date,
+            'inspection_status': inspection.inspection_status,
+            'testing_status': inspection.testing_status,
+            'notes': inspection.notes,
+            'user': {'username': inspection.user.username if inspection.user else 'N/A'},
+            'created_at': inspection.created_at
+        })
+    return render_template("inspections.html", inspections=inspections_data)
 
 
 @main_bp.route("/add_inspection", methods=["GET", "POST"])
 @login_required
 def add_inspection():
-    if not current_user.is_inspector() and not current_user.is_admin():
-        flash("You do not have permission to add inspection records.", "danger")
+    if not current_user.is_inspector():
+        flash("You do not have permission to add inspection records", "danger")
         return redirect(url_for("main.inspections"))
-    
+
     substations = Substation.query.all()
-    # In a real app, you'd use a WTForm for this as well
     if request.method == "POST":
         substation_id = request.form.get("substation_id")
         inspection_date_str = request.form.get("inspection_date")
@@ -280,5 +218,77 @@ def add_inspection():
         except Exception as e:
             db.session.rollback()
             flash(f"Error adding inspection record: {e}", "danger")
-    
+
     return render_template("add_inspection.html", substations=substations)
+
+@main_bp.route("/metrics")
+@login_required
+def metrics():
+    # Weekly Trend
+    weekly_metrics = db.session.query(
+        func.strftime("%Y-%W", ReliabilityMetric.date).label("week"),
+        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
+        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
+        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
+        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
+        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
+    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(weeks=12))).group_by("week").order_by("week").all()
+
+    _weekly_metrics = []
+    for week_data in weekly_metrics:
+        _weekly_metrics.append({
+            'date': week_data.week,
+            'reliability_score': week_data.avg_reliability,
+            'testing_compliance': week_data.avg_testing_compliance,
+            'inspection_compliance': week_data.avg_inspection_compliance,
+            'coverage_ratio': week_data.avg_coverage_ratio,
+            'effective_reliability': week_data.avg_effective_reliability
+        })
+
+
+    # Monthly Trend
+    monthly_metrics = db.session.query(
+        func.strftime("%Y-%m", ReliabilityMetric.date).label("month"),
+        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
+        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
+        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
+        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
+        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
+    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365))).group_by("month").order_by("month").all()
+
+    _monthly_metrics = []
+    for month_data in monthly_metrics:
+        _monthly_metrics.append({
+            'month': month_data.month,
+            'avg_reliability': month_data.avg_reliability,
+            'avg_testing_compliance': month_data.avg_testing_compliance,
+            'avg_inspection_compliance': month_data.avg_inspection_compliance,
+            'avg_coverage_ratio': month_data.avg_coverage_ratio,
+            'avg_effective_reliability': month_data.avg_effective_reliability
+        })
+
+    # Yearly Trend
+    _yearly_metrics = db.session.query(
+        func.to_char(ReliabilityMetric.date, "YYYY").label("year"),
+        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
+        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
+        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
+        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
+        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
+    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365*5))).group_by("year").order_by("year").all()
+
+    yearly_metrics = []
+    for year_data in _yearly_metrics:
+        yearly_metrics.append({
+            'year': year_data.year,
+            'avg_reliability': year_data.avg_reliability,
+            'avg_testing_compliance': year_data.avg_testing_compliance,
+            'avg_inspection_compliance': year_data.avg_inspection_compliance,
+            'avg_coverage_ratio': year_data.avg_coverage_ratio,
+            'avg_effective_reliability': year_data.avg_effective_reliability
+        })
+
+    return render_template("metrics.html",
+                           weekly_metrics=_weekly_metrics,
+                           monthly_metrics=_monthly_metrics,
+                           yearly_metrics=yearly_metrics)
