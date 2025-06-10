@@ -5,7 +5,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Substations</h1>
-    <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary">Add New Substation</a>
+    <div>
+        <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary me-2">Add New Substation</a>
+        <a href="{{ url_for('main.import_substations') }}" class="btn btn-secondary">Import Substations</a>
+    </div>
 </div>
 
 <div class="card">
@@ -29,9 +32,6 @@
                     <td>{{ substation.coverage_status }}</td>
                     <td>
                         <a href="{{ url_for('main.edit_substation', id=substation.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                        <form action="{{ url_for('main.delete_substation', id=substation.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this substation and all its related inspection records?');">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
                     </td>
                 </tr>
                 {% endfor %}
