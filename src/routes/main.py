@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, case, distinct
 from sqlalchemy.orm import joinedload # Import joinedload for eager loading
 
 from src.extensions import db
