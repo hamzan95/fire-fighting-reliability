@@ -11,7 +11,7 @@ from src.routes.auth import auth_bp
 from datetime import date
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fire_fighting_reliability_secret_key")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dcd1abf04045fea502c99fdbb7809582")
 
 # PostgreSQL configuration for Render.com
 database_url = os.environ.get("DATABASE_URL")
