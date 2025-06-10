@@ -1,7 +1,11 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length
+from flask_wtf import FlaskForm
+from wtforms import SubmitField
 
+class DeleteSubstationForm(FlaskForm):
+    submit = SubmitField('Delete')
 class SubstationForm(FlaskForm):
     name = StringField(
         "Substation Name",
