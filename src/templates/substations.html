@@ -1,4 +1,3 @@
-{# templates/substations.html #}
 {% extends 'base.html' %}
 
 {% block title %}Substations - Fire Fighting System Reliability{% endblock %}
@@ -30,11 +29,9 @@
                     <td>{{ substation.coverage_status }}</td>
                     <td>
                         <a href="{{ url_for('main.edit_substation', id=substation.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                        {% if current_user.is_admin() %} {# Only show delete button for admins #}
-                        <form action="{{ url_for('main.delete_substation', id=substation.id) }}" method="POST" style="display:inline-block;">
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete substation \'{{ substation.name }}\'? This action cannot be undone and will delete all associated inspection records!');">Delete</button>
+                        <form action="{{ url_for('main.delete_substation', id=substation.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this substation and all its related inspection records?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                         </form>
-                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
