@@ -13,6 +13,42 @@ from src.forms.substation_forms import SubstationForm
 
 main_bp = Blueprint("main", __name__) # This should be the *only* place main_bp is defined
 
+@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
+@login_required
+def delete_substation(id):
+    # Ensure only administrators or authorized users can delete substations
+    if not current_user.is_admin(): # Or current_user.is_inspector() if inspectors can delete
+        flash("You do not have permission to delete substations.", "danger")
+        return redirect(url_for("main.substations"))
+
+    substation = Substation.query.get_or_404(id)
+
+    try:
+        # Before deleting the substation, you should consider what to do with
+        # related records (e.g., InspectionTest, ReliabilityMetric).
+        # SQLAlchemy's `cascade` and `passive_deletes` options on relationships
+        # can handle this automatically, but if you don't have them set up,
+        # you might need to manually delete related records first or set them to NULL.
+        # For this example, let's assume cascade delete is NOT set up and we'll
+        # show how to delete related inspection tests.
+        
+        # Delete related inspection tests first
+        InspectionTest.query.filter_by(substation_id=id).delete()
+        
+        # Note: ReliabilityMetric usually isn't directly linked 1-to-1 with a substation,
+        # so you might not need to delete those. If it were, you'd handle it similarly.
+
+        db.session.delete(substation)
+        db.session.commit()
+        flash(f"Substation '{substation.name}' and its related inspection records deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting substation: {e}", "danger")
+
+    return redirect(url_for("main.substations"))
+
+# ... rest of your routes (dashboard, substations, add_substation, edit_substation, inspections, etc.) ...
+
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
