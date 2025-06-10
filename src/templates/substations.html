@@ -7,7 +7,12 @@
     <h1>Substations</h1>
     <div>
         <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary me-2">Add New Substation</a>
-        <a href="{{ url_for('main.import_substations') }}" class="btn btn-secondary">Import Substations</a>
+        <a href="{{ url_for('main.import_substations') }}" class="btn btn-secondary me-2">Import Substations</a>
+        {% if current_user.is_admin() %}
+        <form action="{{ url_for('main.reset_substation_ids') }}" method="POST" style="display:inline;" onsubmit="return confirm('WARNING: This will DELETE ALL substation and inspection records and reset substation IDs. Are you absolutely sure?');">
+            <button type="submit" class="btn btn-danger">Reset Substations & IDs</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 
