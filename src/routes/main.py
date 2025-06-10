@@ -8,7 +8,7 @@ from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
 from src.models.user import Role
 from src.forms.substation_forms import SubstationForm
-import pandas as pd # <--- Ensure this is present
+import pandas as pd # Ensure this is present
 
 main_bp = Blueprint("main", __name__)
 
@@ -103,6 +103,26 @@ def edit_substation(id):
         flash("Substation updated successfully!", "success")
         return redirect(url_for("main.substations"))
     return render_template("edit_substation.html", form=form, substation=substation)
+
+@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
+@login_required
+def delete_substation(id):
+    # Only admins can delete substations
+    if not current_user.is_admin():
+        flash("You do not have permission to delete substations.", "danger")
+        return redirect(url_for("main.substations"))
+
+    substation = Substation.query.get_or_404(id)
+    try:
+        # Delete associated inspection records first due to foreign key constraint
+        InspectionTest.query.filter_by(substation_id=substation.id).delete()
+        db.session.delete(substation)
+        db.session.commit()
+        flash("Substation and its associated records deleted successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting substation: {e}", "danger")
+    return redirect(url_for("main.substations"))
 
 @main_bp.route("/add_inspection", methods=["GET", "POST"])
 @login_required
