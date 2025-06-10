@@ -1,48 +1,64 @@
 {% extends "base.html" %}
 
-{% block title %}Add Inspection/Test{% endblock %}
-
 {% block content %}
-<h2>Add New Inspection/Test Record</h2>
-<form method="POST" action="{{ url_for("main.add_inspection") }}">
-    <div class="mb-3">
-        <label for="substation_id" class="form-label">Substation</label>
-        <select class="form-select" id="substation_id" name="substation_id" required>
-            <option value="">Select Substation</option>
-            {% for substation in substations %}
-            <option value="{{ substation.id }}">{{ substation.name }}</option>
+<div class="container mt-4">
+    <h2>Add New Inspection Record</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
             {% endfor %}
-        </select>
-    </div>
-    <div class="mb-3">
-        <label for="inspection_date" class="form-label">Inspection Date</label>
-        <input type="date" class="form-control" id="inspection_date" name="inspection_date" required>
-    </div>
-    <div class="mb-3">
-        <label for="testing_date" class="form-label">Testing Date (Optional)</label>
-        <input type="date" class="form-control" id="testing_date" name="testing_date">
-    </div>
-    <div class="mb-3">
-        <label for="inspection_status" class="form-label">Inspection Status</label>
-        <select class="form-select" id="inspection_status" name="inspection_status" required>
-            <option value="">Select Status</option>
-            <option value="Inspected">Inspected</option>
-            <option value="Not Inspected">Not Inspected</option>
-        </select>
-    </div>
-    <div class="mb-3">
-        <label for="testing_status" class="form-label">Testing Status (Optional)</label>
-        <select class="form-select" id="testing_status" name="testing_status">
-            <option value="">Select Status</option>
-            <option value="Tested">Tested</option>
-            <option value="Not Tested">Not Tested</option>
-        </select>
-    </div>
-    <div class="mb-3">
-        <label for="notes" class="form-label">Notes</label>
-        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
-    </div>
-    <button type="submit" class="btn btn-primary">Add Record</button>
-</form>
+        {% endif %}
+    {% endwith %}
+    <form method="POST">
+        <div class="mb-3">
+            <label for="substation_id" class="form-label">Substation</label>
+            <select class="form-select js-example-basic-single" id="substation_id" name="substation_id" required>
+                <option value="">Select Substation</option>
+                {% for substation in substations %}
+                    <option value="{{ substation.id }}">{{ substation.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="inspection_date" class="form-label">Inspection Date</label>
+            <input type="date" class="form-control" id="inspection_date" name="inspection_date" required>
+        </div>
+        <div class="mb-3">
+            <label for="testing_date" class="form-label">Testing Date (Optional)</label>
+            <input type="date" class="form-control" id="testing_date" name="testing_date">
+        </div>
+        <div class="mb-3">
+            <label for="inspection_status" class="form-label">Inspection Status</label>
+            <select class="form-select" id="inspection_status" name="inspection_status" required>
+                <option value="Inspected">Inspected</option>
+                <option value="Pending">Pending</option>
+                <option value="Failed">Failed</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="testing_status" class="form-label">Testing Status</label>
+            <select class="form-select" id="testing_status" name="testing_status" required>
+                <option value="Tested">Tested</option>
+                <option value="Pending">Pending</option>
+                <option value="Failed">Failed</option>
+                <option value="N/A">N/A</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="notes" class="form-label">Notes</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Inspection</button>
+    </form>
+</div>
 {% endblock %}
 
+{% block scripts %}
+    {{ super() }}
+    <script>
+        $(document).ready(function() {
+            $('.js-example-basic-single').select2();
+        });
+    </script>
+{% endblock %}
