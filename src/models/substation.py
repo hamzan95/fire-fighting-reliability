@@ -6,6 +6,8 @@ class Substation(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     coverage_status = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    inspections = db.relationship('InspectionTest', backref='substation_obj', lazy=True, cascade="all, delete-orphan")
+
 
     def __repr__(self):
         return f'<Substation {self.name}>'
