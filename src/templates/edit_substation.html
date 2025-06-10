@@ -5,19 +5,25 @@
 {% block content %}
 <h2>Edit Substation</h2>
 <form method="POST" action="{{ url_for("main.edit_substation", id=substation.id) }}">
+    {{ form.hidden_tag() }} {# Add this for CSRF protection #}
     <div class="mb-3">
-        <label for="name" class="form-label">Substation Name</label>
-        <input type="text" class="form-control" id="name" name="name" value="{{ substation.name }}" required>
+        {{ form.name.label(class="form-label") }}
+        {{ form.name() }}
+        {% if form.name.errors %}
+            {% for error in form.name.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        {% endif %}
     </div>
     <div class="mb-3">
-        <label for="coverage_status" class="form-label">Coverage Status</label>
-        <select class="form-select" id="coverage_status" name="coverage_status" required>
-            <option value="Fully Covered" {% if substation.coverage_status == "Fully Covered" %}selected{% endif %}>Fully Covered</option>
-            <option value="Partially Covered" {% if substation.coverage_status == "Partially Covered" %}selected{% endif %}>Partially Covered</option>
-            <option value="Not Covered" {% if substation.coverage_status == "Not Covered" %}selected{% endif %}>Not Covered</option>
-        </select>
+        {{ form.coverage_status.label(class="form-label") }}
+        {{ form.coverage_status() }}
+        {% if form.coverage_status.errors %}
+            {% for error in form.coverage_status.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        {% endif %}
     </div>
-    <button type="submit" class="btn btn-primary">Update Substation</button>
+    {{ form.submit(class="btn btn-primary", value="Update Substation") }} {# Update button value #}
 </form>
 {% endblock %}
-
