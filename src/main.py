@@ -1,4 +1,4 @@
-from flask import FlaskAdd commentMore actions
+from flask import Flask
 from flask_login import LoginManager
 from src.extensions import db
 from src.routes.main import main_bp # Import the blueprint from src.routes.main
