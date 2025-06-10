@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Inspections{% endblock %}
@@ -156,4 +157,49 @@
 {{ super() }}
 <script>
     $(document).ready(function() {
-        // Handle "
+        // Handle "Select All" checkbox for Tested Substations
+        $('#selectAllTested').on('change', function() {
+            $('#tested .substation-checkbox').prop('checked', $(this).prop('checked'));
+        });
+
+        // Handle "Select All" checkbox for Not Tested Substations
+        $('#selectAllNotTested').on('change', function() {
+            $('#not-tested .substation-checkbox').prop('checked', $(this).prop('checked'));
+        });
+
+        // Event listener for the bulk update button
+        $('#applyBulkUpdate').on('click', function(e) {
+            e.preventDefault(); // Prevent default form submission
+
+            var selectedIds = [];
+            $('.substation-checkbox:checked').each(function() {
+                selectedIds.push($(this).val());
+            });
+
+            if (selectedIds.length === 0) {
+                alert('Please select at least one substation for bulk update.');
+                return;
+            }
+
+            // Set the selected IDs to the hidden input
+            $('#selectedSubstationIds').val(selectedIds.join(','));
+
+            // Confirm with the user
+            if (confirm('Are you sure you want to update ' + selectedIds.length + ' selected substation records?')) {
+                $('#bulkUpdateForm').submit(); // Submit the form
+            }
+        });
+
+        // Initialize Bootstrap tabs manually if they don't auto-activate
+        var triggerTabList = [].slice.call(document.querySelectorAll('#inspectionTabs button'))
+        triggerTabList.forEach(function (triggerEl) {
+            var tabTrigger = new bootstrap.Tab(triggerEl)
+
+            triggerEl.addEventListener('click', function (event) {
+                event.preventDefault()
+                tabTrigger.show()
+            })
+        })
+    });
+</script>
+{% endblock %}
