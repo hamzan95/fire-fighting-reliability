@@ -309,3 +309,121 @@ def metrics():
                            weekly_metrics=weekly_metrics,
                            monthly_metrics=monthly_metrics,
                            yearly_metrics=yearly_metrics)
+
+@main_bp.route("/export/excel")
+@login_required
+def export_excel():
+    if not current_user.is_admin():
+        flash("You do not have permission to export data.", "danger")
+        return redirect(url_for("main.dashboard"))
+
+    # --- Fetch Data ---
+
+    # 1. Substations
+    substations = Substation.query.all()
+    substation_data = [{
+        'ID': s.id,
+        'Name': s.name,
+        'Coverage Status': s.coverage_status,
+        'Created At': s.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for s in substations]
+    df_substations = pd.DataFrame(substation_data)
+
+    # 2. Inspection Records
+    inspections = InspectionTest.query.all()
+    inspection_data = [{
+        'ID': i.id,
+        'Substation Name': i.substation.name if i.substation else 'N/A',
+        'Inspection Date': i.inspection_date.strftime('%Y-%m-%d'),
+        'Testing Date': i.testing_date.strftime('%Y-%m-%d') if i.testing_date else 'N/A',
+        'Inspection Status': i.inspection_status,
+        'Testing Status': i.testing_status if i.testing_status else 'N/A',
+        'Notes': i.notes,
+        'Recorded By': i.user.username if i.user else 'N/A',
+        'Created At': i.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for i in inspections]
+    df_inspections = pd.DataFrame(inspection_data)
+
+    # 3. Weekly Reliability Metrics (similar logic as in /metrics route)
+    weekly_metrics_raw = db.session.query(
+        func.to_char(ReliabilityMetric.date, "YYYY-WW").label("week"),
+        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
+        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
+        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
+        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
+        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
+    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(weeks=12))).group_by("week").order_by("week").all()
+
+    weekly_metrics_list = [{
+        'Week': d.week,
+        'Avg Reliability Score': d.avg_reliability,
+        'Avg Testing Compliance': d.avg_testing_compliance,
+        'Avg Inspection Compliance': d.avg_inspection_compliance,
+        'Avg Coverage Ratio': d.avg_coverage_ratio,
+        'Avg Effective Reliability': d.avg_effective_reliability
+    } for d in weekly_metrics_raw]
+    df_weekly_metrics = pd.DataFrame(weekly_metrics_list)
+
+
+    # 4. Monthly Reliability Metrics
+    monthly_metrics_raw = db.session.query(
+        func.to_char(ReliabilityMetric.date, "YYYY-MM").label("month"),
+        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
+        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
+        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
+        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
+        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
+    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365))).group_by("month").order_by("month").all()
+
+    monthly_metrics_list = [{
+        'Month': d.month,
+        'Avg Reliability Score': d.avg_reliability,
+        'Avg Testing Compliance': d.avg_testing_compliance,
+        'Avg Inspection Compliance': d.avg_inspection_compliance,
+        'Avg Coverage Ratio': d.avg_coverage_ratio,
+        'Avg Effective Reliability': d.avg_effective_reliability
+    } for d in monthly_metrics_raw]
+    df_monthly_metrics = pd.DataFrame(monthly_metrics_list)
+
+    # 5. Yearly Reliability Metrics
+    yearly_metrics_raw = db.session.query(
+        func.to_char(ReliabilityMetric.date, "YYYY").label("year"),
+        func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
+        func.avg(ReliabilityMetric.testing_compliance).label("avg_testing_compliance"),
+        func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
+        func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
+        func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
+    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365*5))).group_by("year").order_by("year").all()
+
+    yearly_metrics_list = [{
+        'Year': d.year,
+        'Avg Reliability Score': d.avg_reliability,
+        'Avg Testing Compliance': d.avg_testing_compliance,
+        'Avg Inspection Compliance': d.avg_inspection_compliance,
+        'Avg Coverage Ratio': d.avg_coverage_ratio,
+        'Avg Effective Reliability': d.avg_effective_reliability
+    } for d in yearly_metrics_raw]
+    df_yearly_metrics = pd.DataFrame(yearly_metrics_list)
+
+
+    # --- Create Excel File in memory ---
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        if not df_substations.empty:
+            df_substations.to_excel(writer, sheet_name='Substations', index=False)
+        if not df_inspections.empty:
+            df_inspections.to_excel(writer, sheet_name='Inspections', index=False)
+        if not df_weekly_metrics.empty:
+            df_weekly_metrics.to_excel(writer, sheet_name='Weekly Metrics', index=False)
+        if not df_monthly_metrics.empty:
+            df_monthly_metrics.to_excel(writer, sheet_name='Monthly Metrics', index=False)
+        if not df_yearly_metrics.empty:
+            df_yearly_metrics.to_excel(writer, sheet_name='Yearly Metrics', index=False)
+
+    output.seek(0) # Go to the beginning of the stream
+
+    # --- Send File ---
+    return send_file(output,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     download_name=f'fire_fighting_data_export_{date.today().strftime("%Y%m%d")}.xlsx',
+                     as_attachment=True)
