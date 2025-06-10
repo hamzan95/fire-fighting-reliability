@@ -23,15 +23,18 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for("main.dashboard") }}">Dashboard</a>
                     </li>
-                    {% if current_user.is_authenticated and current_user.is_inspector() %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for("main.substations") }}">Substations</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("main.add_substation") }}">Add Substation</a>
+                        <a class="nav-link" href="{{ url_for("main.inspections") }}">Inspections</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("main.inspections") }}">Inspections</a>
+                        <a class="nav-link" href="{{ url_for("main.metrics") }}">Metrics</a> {# Restored Metrics link #}
+                    </li>
+                    {% if current_user.is_authenticated and current_user.is_inspector() %} {# Conditional links #}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("main.add_substation") }}">Add Substation</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for("main.add_inspection") }}">Add Inspection</a>
@@ -85,4 +88,3 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
-
