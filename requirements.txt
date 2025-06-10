@@ -15,4 +15,5 @@ flask-login==0.6.2
 flask-bcrypt==1.0.1
 email-validator==2.0.0
 flask-wtf==1.2.1
-openpyxl
+pandas==2.2.2
+openpyxl==3.1.2
