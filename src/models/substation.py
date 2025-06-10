@@ -1,4 +1,4 @@
-from src.main import db
+from src.extensions import db
 from datetime import datetime
 
 class Substation(db.Model):
@@ -14,12 +14,12 @@ class InspectionTest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     substation_id = db.Column(db.Integer, db.ForeignKey('substation.id'), nullable=False)
     inspection_date = db.Column(db.Date, nullable=False)
-    testing_date = db.Column(db.Date, nullable=True)  # New field for testing date
+    testing_date = db.Column(db.Date, nullable=True)
     inspection_status = db.Column(db.String(20), nullable=False)
-    testing_status = db.Column(db.String(20), nullable=True)  # New field for testing status
+    testing_status = db.Column(db.String(20), nullable=True)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Link to user who created the record
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
     user = db.relationship('User', backref=db.backref('inspections', lazy=True))
@@ -36,4 +36,3 @@ class ReliabilityMetric(db.Model):
 
     def __repr__(self):
         return f'<ReliabilityMetric {self.date}>'
-
