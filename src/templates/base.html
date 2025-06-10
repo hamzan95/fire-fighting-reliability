@@ -32,10 +32,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for("main.metrics") }}">Metrics</a>
                     </li>
-                    {% if current_user.is_authenticated and current_user.role.name == 'ADMIN' %} {# User Management link #}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("main.users") }}">User Management</a> {# Link to /users page #}
-                    </li>
+                     {% if current_user.is_authenticated %}
+                        {% if current_user.is_admin() %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for("auth.users") }}">User Management</a>
+                        </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
