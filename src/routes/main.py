@@ -3,12 +3,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, text # Import 'text' from sqlalchemy
 from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
 from src.models.user import Role
 from src.forms.substation_forms import SubstationForm
-import pandas as pd # Ensure this is present
+import pandas as pd
 
 main_bp = Blueprint("main", __name__)
 
@@ -122,6 +122,39 @@ def delete_substation(id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting substation: {e}", "danger")
+    return redirect(url_for("main.substations"))
+
+# NEW ROUTE TO RESET SUBSTATION IDs
+@main_bp.route("/reset_substation_ids", methods=["POST"])
+@login_required
+def reset_substation_ids():
+    # Only admins can perform this action
+    if not current_user.is_admin():
+        flash("You do not have permission to reset substation IDs.", "danger")
+        return redirect(url_for("main.substations"))
+
+    try:
+        # Delete all inspection records first
+        num_inspections_deleted = db.session.query(InspectionTest).delete()
+        
+        # Then delete all substation records
+        num_substations_deleted = db.session.query(Substation).delete()
+
+        # Reset the ID sequence based on the database type
+        # Check if DATABASE_URL is set, indicating PostgreSQL, otherwise assume SQLite
+        if db.engine.url.drivername.startswith('postgresql'):
+            # PostgreSQL: Reset sequence to 1
+            db.session.execute(text("ALTER SEQUENCE substation_id_seq RESTART WITH 1;"))
+        else:
+            # SQLite: Reset sequence for the 'substation' table
+            db.session.execute(text("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'substation';"))
+            
+        db.session.commit()
+        flash(f"Successfully deleted {num_substations_deleted} substations and {num_inspections_deleted} inspection records. Substation IDs have been reset.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error resetting substation IDs: {e}", "danger")
+    
     return redirect(url_for("main.substations"))
 
 @main_bp.route("/add_inspection", methods=["GET", "POST"])
