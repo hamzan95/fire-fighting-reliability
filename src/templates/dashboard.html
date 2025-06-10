@@ -3,14 +3,6 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-md-12 text-end">
-        {% if current_user.is_admin() %}
-        <a href="{{ url_for('main.export_excel') }}" class="btn btn-success">Export All Data to Excel</a>
-        {% endif %}
-    </div>
-</div>
-
 <div class="row">
     <div class="col-md-3">
         <div class="card text-white bg-primary mb-3">
@@ -46,6 +38,35 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Coverage Status Distribution</div>
+            <div class="card-body">
+                <canvas id="coverageChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Inspection Status Distribution</div>
+            <div class="card-body">
+                <canvas id="inspectionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Testing Status Distribution</div>
+            <div class="card-body">
+                <canvas id="testingChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -54,7 +75,6 @@
     var inspectionData = {{ inspection_data | tojson }};
     var testingData = {{ testing_data | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-<script src="{{ url_for('static', filename='js/visualization.js') }}"></script>
+<script src="{{ url_for("static", filename="js/dashboard.js") }}"></script>
 {% endblock %}
 
