@@ -20,7 +20,7 @@ class InspectionTest(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    
+
     substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
     user = db.relationship('User', backref=db.backref('inspections', lazy=True))
 
@@ -32,7 +32,6 @@ class ReliabilityMetric(db.Model):
     inspection_compliance = db.Column(db.Float, nullable=False)
     coverage_ratio = db.Column(db.Float, nullable=False)
     effective_reliability = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f'<ReliabilityMetric {self.date}>'
