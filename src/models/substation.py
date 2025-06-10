@@ -6,8 +6,6 @@ class Substation(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     coverage_status = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    inspections = db.relationship('InspectionTest', backref='substation_obj', lazy=True, cascade="all, delete-orphan")
-
 
     def __repr__(self):
         return f'<Substation {self.name}>'
@@ -24,7 +22,7 @@ class InspectionTest(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
-    user = db.relationship('User', backref=db.backref('inspections', lazy=True))
+    user = db.relationship('User', backref=db.backref('user_inspections', lazy=True)) # Changed backref name here
 
 class ReliabilityMetric(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,6 +32,7 @@ class ReliabilityMetric(db.Model):
     inspection_compliance = db.Column(db.Float, nullable=False)
     coverage_ratio = db.Column(db.Float, nullable=False)
     effective_reliability = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f'<ReliabilityMetric {self.date}>'
