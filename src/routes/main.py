@@ -75,6 +75,24 @@ def dashboard():
                            inspection_data=inspection_data,
                            testing_data=testing_data)
 
+@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
+@login_required
+def delete_substation(id):
+    # Restrict deletion to admin users only
+    if not current_user.is_admin():
+        flash("You do not have permission to delete substations.", "danger")
+        return redirect(url_for("main.substations"))
+
+    substation = Substation.query.get_or_404(id)
+    try:
+        db.session.delete(substation)
+        db.session.commit()
+        flash(f"Substation '{substation.name}' and all associated inspection records deleted successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting substation: {e}", "danger")
+    return redirect(url_for("main.substations"))
+
 @main_bp.route("/substations")
 @login_required
 def substations():
