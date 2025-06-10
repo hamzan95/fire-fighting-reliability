@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Inspections{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Inspection Records</h2>
+    <a href="{{ url_for("main.add_inspection") }}" class="btn btn-primary">Add New Record</a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Substation</th>
+            <th>Inspection Date</th>
+            <th>Testing Date</th>
+            <th>Inspection Status</th>
+            <th>Testing Status</th>
+            <th>Notes</th>
+            <th>Recorded By</th>
+            <th>Date Added</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inspection in inspections %}
+        <tr>
+            <td>{{ inspection.substation.name }}</td>
+            <td>{{ inspection.inspection_date.strftime("%Y-%m-%d") }}</td>
+            <td>{% if inspection.testing_date %}{{ inspection.testing_date.strftime("%Y-%m-%d") }}{% else %}N/A{% endif %}</td>
+            <td>{{ inspection.inspection_status }}</td>
+            <td>{{ inspection.testing_status if inspection.testing_status else "N/A" }}</td>
+            <td>{{ inspection.notes }}</td>
+            <td>{{ inspection.user.username if inspection.user else "N/A" }}</td>
+            <td>{{ inspection.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

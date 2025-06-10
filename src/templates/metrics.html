@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Metrics{% endblock %}
+
+{% block content %}
+<h2>Reliability Metrics Trends</h2>
+
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="weekly-tab" data-bs-toggle="tab" data-bs-target="#weekly" type="button" role="tab" aria-controls="weekly" aria-selected="true">Weekly</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly" type="button" role="tab" aria-controls="monthly" aria-selected="false">Monthly</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="yearly-tab" data-bs-toggle="tab" data-bs-target="#yearly" type="button" role="tab" aria-controls="yearly" aria-selected="false">Yearly</button>
+    </li>
+</ul>
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade show active" id="weekly" role="tabpanel" aria-labelledby="weekly-tab">
+        <h3 class="mt-3">Weekly Trend (Last 12 Weeks)</h3>
+        <canvas id="weeklyChart"></canvas>
+    </div>
+    <div class="tab-pane fade" id="monthly" role="tabpanel" aria-labelledby="monthly-tab">
+        <h3 class="mt-3">Monthly Trend (Last 12 Months)</h3>
+        <canvas id="monthlyChart"></canvas>
+    </div>
+    <div class="tab-pane fade" id="yearly" role="tabpanel" aria-labelledby="yearly-tab">
+        <h3 class="mt-3">Yearly Trend (Last 5 Years)</h3>
+        <canvas id="yearlyChart"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var weeklyMetrics = {{ weekly_metrics | tojson }};
+    var monthlyMetrics = {{ monthly_metrics | tojson }};
+    var yearlyMetrics = {{ yearly_metrics | tojson }};
+</script>
+<script src="{{ url_for("static", filename="js/visualization.js") }}"></script>
+{% endblock %}
+
