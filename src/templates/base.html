@@ -32,14 +32,13 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for("main.metrics") }}">Metrics</a>
                     </li>
-                    {# "Add Substation" and "Add Inspection" removed as per your request #}
-                </ul>
-                <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated and current_user.role.name == 'ADMIN' %}
+                    {% if current_user.is_authenticated and current_user.role.name == 'ADMIN' %} {# User Management link #}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("auth.register") }}">User Management</a> {# Link text updated #}
+                        <a class="nav-link" href="{{ url_for("main.users") }}">User Management</a> {# Link to /users page #}
                     </li>
                     {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <span class="nav-link text-light">Welcome, {{ current_user.username }}!</span>
