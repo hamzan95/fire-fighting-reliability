@@ -12,6 +12,17 @@ from src.forms.substation_forms import SubstationForm
 
 main_bp = Blueprint("main", __name__)
 
+@main_bp.route("/inspections")
+@login_required
+def inspections():
+    if not (current_user.is_admin() or current_user.is_inspector() or current_user.is_viewer()):
+        flash("You do not have permission to view inspection records.", "danger")
+        return redirect(url_for("main.dashboard"))
+    
+    # Fetch inspections with related substation and user data eager loaded
+    inspections = InspectionTest.query.options(joinedload(InspectionTest.substation), joinedload(InspectionTest.user)).all()
+    return render_template("inspections.html", inspections=inspections)
+
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
