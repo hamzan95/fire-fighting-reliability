@@ -4,7 +4,7 @@
 
 {% block content %}
 <h2>Edit Substation</h2>
-<form method="POST" action="{{ url_for("main.edit_substation", id=substation.id) }}">
+<form method="POST" action="{{ url_for("main.edit_substation", substation_id=substation.id) }}">
     {{ form.hidden_tag() }} {# Add this for CSRF protection #}
     <div class="mb-3">
         {{ form.name.label(class="form-label") }}
