@@ -1,7 +1,7 @@
+import os
 from flask import Flask
 from flask_login import LoginManager
 from src.extensions import db
-from src.routes.main import main_bp # Import the blueprint from src.routes.main
 from src.routes.main import main_bp
 from src.routes.auth import auth_bp
 
@@ -18,7 +18,7 @@ def create_app():
 
     # Initialize extensions
     db.init_app(app)
-
+    
     # Initialize Flask-Login
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -26,11 +26,9 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        from src.models.user import User
         from src.models.user import User  # Import here to avoid circular imports
         return User.query.get(int(user_id))
 
-    # Register blueprints (ONLY ONCE)
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -42,12 +40,12 @@ def create_app():
         admin = User.query.filter_by(username="admin").first()
         if not admin:
             admin = User(username="admin", email="admin@example.com", role=Role.ADMIN)
-            admin.set_password("admin123")
             admin.set_password("admin123")  # Change this to a secure password
             db.session.add(admin)
             db.session.commit()
             print("Admin user created")
-@@ -45,6 +49,11 @@ def load_user(user_id):
+        
+        print("Database tables created successfully")
 
     return app
 
@@ -55,7 +53,3 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
-
-# If you're running this directly (e.g., with `python main.py`)
-if __name__ == '__main__':
-    app = create_app()
