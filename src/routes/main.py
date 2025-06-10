@@ -154,12 +154,8 @@ def add_substation():
 @main_bp.route("/substations/edit/<int:substation_id>", methods=["GET", "POST"])
 @login_required
 def edit_substation(substation_id):
-    if not current_user.is_admin():
-        flash("You do not have permission to edit substations.", "danger")
-        return redirect(url_for("main.dashboard"))
-    
     substation = Substation.query.get_or_404(substation_id)
-    form = SubstationForm(obj=substation)
+    form = SubstationForm(obj=substation) # Pre-populate form with existing data
 
     if form.validate_on_submit():
         substation.name = form.name.data
@@ -172,7 +168,7 @@ def edit_substation(substation_id):
             db.session.rollback()
             flash(f"Error updating substation: {e}", "danger")
     
-    return render_template("edit_substation.html", form=form, substation_id=substation.id)
+    return render_template("edit_substation.html", form=form, substation=substation)
 
 @main_bp.route("/substations/delete/<int:substation_id>", methods=["POST"])
 @login_required
