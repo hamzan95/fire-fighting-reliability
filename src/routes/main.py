@@ -10,7 +10,25 @@ from src.models.user import Role
 from src.forms.substation_forms import SubstationForm
 
 main_bp = Blueprint("main", __name__)
+@main_bp.route("/delete_substation/<int:id>", methods=["POST"])
+@login_required
+def delete_substation(id):
+    if not current_user.is_admin() and not current_user.is_inspector():
+        flash("You do not have permission to delete substations.", "danger")
+        return redirect(url_for("main.substations"))
 
+    substation = Substation.query.get_or_404(id)
+    try:
+        # Delete related inspection records first to avoid foreign key constraints
+        InspectionTest.query.filter_by(substation_id=substation.id).delete()
+        db.session.delete(substation)
+        db.session.commit()
+        flash(f"Substation '{substation.name}' and its inspection records deleted successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting substation: {e}", "danger")
+    return redirect(url_for("main.substations"))
+    
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
