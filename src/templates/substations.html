@@ -1,3 +1,4 @@
+{# templates/substations.html #}
 {% extends 'base.html' %}
 
 {% block title %}Substations - Fire Fighting System Reliability{% endblock %}
@@ -5,10 +6,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Substations</h1>
-    <div>
-        <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary me-2">Add New Substation</a>
-        <a href="{{ url_for('main.upload_substations') }}" class="btn btn-success">Upload Substations CSV</a> {# Add this line #}
-    </div>
+    <a href="{{ url_for('main.add_substation') }}" class="btn btn-primary">Add New Substation</a>
 </div>
 
 <div class="card">
@@ -32,6 +30,11 @@
                     <td>{{ substation.coverage_status }}</td>
                     <td>
                         <a href="{{ url_for('main.edit_substation', id=substation.id) }}" class="btn btn-sm btn-primary">Edit</a>
+                        {% if current_user.is_admin() %} {# Only show delete button for admins #}
+                        <form action="{{ url_for('main.delete_substation', id=substation.id) }}" method="POST" style="display:inline-block;">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete substation \'{{ substation.name }}\'? This action cannot be undone and will delete all associated inspection records!');">Delete</button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
