@@ -12,6 +12,13 @@ from src.forms.substation_forms import SubstationForm
 
 main_bp = Blueprint("main", __name__)
 
+@main_bp.route("/inspections")
+@login_required
+def inspections():
+    # Fetch inspections with related substation and user data *eager loaded*
+    inspections = InspectionTest.query.options(joinedload(InspectionTest.substation), joinedload(InspectionTest.user)).all()
+    return render_template("inspections.html", inspections=inspections)
+
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
