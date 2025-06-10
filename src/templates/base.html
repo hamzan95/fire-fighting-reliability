@@ -30,18 +30,16 @@
                         <a class="nav-link" href="{{ url_for("main.inspections") }}">Inspections</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("main.metrics") }}">Metrics</a> {# Restored Metrics link #}
+                        <a class="nav-link" href="{{ url_for("main.metrics") }}">Metrics</a>
                     </li>
-                    {% if current_user.is_authenticated and current_user.is_inspector() %} {# Conditional links #}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("main.add_substation") }}">Add Substation</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("main.add_inspection") }}">Add Inspection</a>
-                    </li>
-                    {% endif %}
+                    {# "Add Substation" and "Add Inspection" removed as per your request #}
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated and current_user.role.name == 'ADMIN' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("auth.register") }}">User Management</a> {# Link text updated #}
+                    </li>
+                    {% endif %}
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <span class="nav-link text-light">Welcome, {{ current_user.username }}!</span>
