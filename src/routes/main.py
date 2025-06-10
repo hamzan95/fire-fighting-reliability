@@ -22,78 +22,85 @@ def dashboard():
     
     fully_covered = Substation.query.filter_by(coverage_status="Fully Covered").count()
     partially_covered = Substation.query.filter_by(coverage_status="Partially Covered").count()
-    not_covered = Substation.query.filter_by(coverage_status="Not Covered").count()
-
-    # Calculate inspected and not inspected substations
-    # Get count of distinct substations that have at least one 'Inspected' inspection
-    inspected_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.inspection_status == "Inspected").scalar()
-    if inspected_count is None: # Handle case where no inspections exist
-        inspected_count = 0
-
-    # Calculate not inspected substations by counting substations that don't have any 'Inspected' status
-    # This is more accurate: check if a substation has *any* inspection, and if so, what its latest status is.
-    # For chart purposes, it's simpler to consider total_substations - inspected_count if 'Inspected' implies completion.
-    # If a substation has NO inspections, it's 'Not Inspected'.
-    # If a substation has inspections but none are 'Inspected', it's 'Not Inspected'.
-    # To be precise for the chart:
-    inspected_substation_ids = db.session.query(func.distinct(InspectionTest.substation_id)).filter(InspectionTest.inspection_status == "Inspected").all()
-    inspected_substation_ids = [s_id[0] for s_id in inspected_substation_ids] # Extract IDs
     
-    not_inspected_substation_count = total_substations - len(inspected_substation_ids) # Correctly calculate not inspected based on substations
-
-    # Calculate tested substations
+    # These compliance metrics still count only "Inspected" and "Tested" specifically
+    inspected_substations_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.inspection_status == "Inspected").scalar()
     tested_substations_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Tested").scalar()
-    if tested_substations_count is None: # Handle case where no testing records exist
-        tested_substations_count = 0
-    
-    # Handle division by zero
+
+    # Handle division by zero for compliance ratios
     if total_substations == 0:
         coverage_ratio = 0
         inspection_compliance = 0
         testing_compliance = 0
     else:
         coverage_ratio = (fully_covered / total_substations) * 100
-        inspection_compliance = (len(inspected_substation_ids) / total_substations) * 100 # Use actual inspected count
+        inspection_compliance = (inspected_substations_count / total_substations) * 100
         testing_compliance = (tested_substations_count / total_substations) * 100
 
-    # Prepare data for charts
+    # Effective Reliability (assuming a formula, adjust if needed)
+    # This is a placeholder, you might have a more complex calculation
+    effective_reliability = (inspection_compliance + testing_compliance + coverage_ratio) / 3 if total_substations > 0 else 0
+
+    # Prepare data for Chart.js
+    
+    # Coverage Status Distribution
+    # This remains unchanged as 'Fully Covered', 'Partially Covered', 'Not Covered' are already distinct.
     coverage_data = {
-        "Fully Covered": fully_covered,
-        "Partially Covered": partially_covered,
-        "Not Covered": not_covered
+        "labels": ["Fully Covered", "Partially Covered", "Not Covered"],
+        "data": [fully_covered, partially_covered, total_substations - fully_covered - partially_covered]
     }
 
-    inspection_data = {
-        "labels": ["Inspected", "Not Inspected"],
-        "datasets": [{
-            "data": [len(inspected_substation_ids), not_inspected_substation_count], # Corrected data
-            "backgroundColor": ["#28a745", "#dc3545"] # Green for Inspected, Red for Not Inspected
-        }]
-    }
+    # Inspection Status Distribution (modified for simplified chart view)
+    # Map 'Pending', 'Failed', and 'Not Inspected' (from new records) to 'Not Inspected'
+    inspection_status_case = case(
+        (InspectionTest.inspection_status == "Inspected", "Inspected"),
+        else_="Not Inspected"
+    ).label("simplified_inspection_status")
 
-    testing_data = {
-        "Tested": tested_substations_count,
-        "Pending": db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Pending").scalar() or 0,
-        "Failed": db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Failed").scalar() or 0,
-        "N/A": db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "N/A").scalar() or 0
-    }
+    # Count records based on the simplified status
+    inspection_status_counts = db.session.query(
+        inspection_status_case, func.count(InspectionTest.id)
+    ).group_by(inspection_status_case).all()
 
-    recent_inspections = InspectionTest.query.options(joinedload(InspectionTest.substation))\
-                                            .order_by(InspectionTest.inspection_date.desc()).limit(10).all()
+    inspection_data_labels = [label for label, count in inspection_status_counts]
+    inspection_data_values = [count for label, count in inspection_status_counts]
 
-    total_users = User.query.count()
+    # Calculate total inspection records for accurate percentages in tooltip
+    total_inspection_records = db.session.query(func.count(InspectionTest.id)).filter(InspectionTest.inspection_status.isnot(None)).scalar() or 0
+
+    # Testing Status Distribution (modified for simplified chart view)
+    # Map 'Pending', 'Failed', 'N/A', and 'Not Tested' (from new records) to 'Not Tested'
+    testing_status_case = case(
+        (InspectionTest.testing_status == "Tested", "Tested"),
+        else_="Not Tested"
+    ).label("simplified_testing_status")
+
+    # Count records based on the simplified status
+    testing_status_counts = db.session.query(
+        testing_status_case, func.count(InspectionTest.id)
+    ).group_by(testing_status_case).all()
+
+    testing_data_labels = [label for label, count in testing_status_counts]
+    testing_data_values = [count for label, count in testing_status_counts]
+
+    # Calculate total testing records for accurate percentages in tooltip
+    total_testing_records = db.session.query(func.count(InspectionTest.id)).filter(InspectionTest.testing_status.isnot(None)).scalar() or 0
 
     return render_template("dashboard.html",
                            total_substations=total_substations,
-                           effective_reliability=75.0, # Placeholder, replace with actual calculation if available
+                           effective_reliability=effective_reliability,
                            testing_compliance=testing_compliance,
                            inspection_compliance=inspection_compliance,
                            coverage_data=coverage_data,
-                           inspection_data=inspection_data,
-                           testing_data=testing_data,
-                           recent_inspections=recent_inspections,
-                           total_users=total_users
-                           )
+                           # Pass new simplified chart data labels and values
+                           inspection_data_labels=inspection_data_labels,
+                           inspection_data_values=inspection_data_values,
+                           testing_data_labels=testing_data_labels,
+                           testing_data_values=testing_data_values,
+                           total_inspection_records=total_inspection_records, # Pass for tooltip calculations
+                           total_testing_records=total_testing_records) # Pass for tooltip calculations
+
+# ... rest of your main.py code ...
 
 
 @main_bp.route("/substations")
