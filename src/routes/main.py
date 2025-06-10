@@ -60,8 +60,41 @@ def dashboard():
 @main_bp.route("/substations")
 @login_required
 def substations():
+    if not current_user.is_inspector():
+        flash("You do not have permission to view this page.", "danger")
+        return redirect(url_for("main.dashboard"))
+    
     substations = Substation.query.all()
-    return render_template("substations.html", substations=substations)
+    
+    # Create a delete form instance for CSRF token
+    # You would typically have a form per row if you want to submit a delete for each item.
+    # For simplicity, we'll create one here and demonstrate its use.
+    delete_form = DeleteSubstationForm() 
+    
+    return render_template("substations.html", substations=substations, delete_form=delete_form)
+
+# Add a delete route
+@main_bp.route("/substation/delete/<int:id>", methods=["POST"])
+@login_required
+def delete_substation(id):
+    if not current_user.is_admin(): # Only admin can delete
+        flash("You do not have permission to delete substations.", "danger")
+        return redirect(url_for("main.substations"))
+    
+    substation = Substation.query.get_or_404(id)
+    form = DeleteSubstationForm()
+    if form.validate_on_submit(): # Check CSRF token
+        try:
+            db.session.delete(substation)
+            db.session.commit()
+            flash(f"Substation '{substation.name}' deleted successfully.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error deleting substation: {str(e)}", "danger")
+    else:
+        flash("Invalid request or CSRF token missing.", "danger")
+    return redirect(url_for("main.substations"))
+
 
 @main_bp.route("/add_substation", methods=["GET", "POST"])
 @login_required
