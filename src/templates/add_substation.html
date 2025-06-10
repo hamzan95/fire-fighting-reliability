@@ -5,20 +5,26 @@
 {% block content %}
 <h2>Add New Substation</h2>
 <form method="POST" action="{{ url_for("main.add_substation") }}">
+    {{ form.hidden_tag() }} {# Add this for CSRF protection #}
     <div class="mb-3">
-        <label for="name" class="form-label">Substation Name</label>
-        <input type="text" class="form-control" id="name" name="name" required>
+        {{ form.name.label(class="form-label") }}
+        {{ form.name() }}
+        {% if form.name.errors %}
+            {% for error in form.name.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        {% endif %}
     </div>
     <div class="mb-3">
-        <label for="coverage_status" class="form-label">Coverage Status</label>
-        <select class="form-select" id="coverage_status" name="coverage_status" required>
-            <option value="">Select Status</option>
-            <option value="Fully Covered">Fully Covered</option>
-            <option value="Partially Covered">Partially Covered</option>
-            <option value="Not Covered">Not Covered</option>
-        </select>
+        {{ form.coverage_status.label(class="form-label") }}
+        {{ form.coverage_status() }}
+        {% if form.coverage_status.errors %}
+            {% for error in form.coverage_status.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        {% endif %}
     </div>
-    <button type="submit" class="btn btn-primary">Add Substation</button>
+    {{ form.submit(class="btn btn-primary", value="Add Substation") }} {# Update button value #}
 </form>
 {% endblock %}
 
