@@ -1,7 +1,6 @@
 import os
 from flask import Flask
-from flask_login import LoginManager
-from src.extensions import db
+from src.extensions import db, login_manager # Import login_manager from extensions
 from src.routes.main import main_bp
 from src.routes.auth import auth_bp
 
@@ -20,7 +19,6 @@ def create_app():
     db.init_app(app)
     
     # Initialize Flask-Login
-    login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
@@ -53,3 +51,4 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
