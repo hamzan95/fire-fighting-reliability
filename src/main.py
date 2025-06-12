@@ -39,7 +39,17 @@ def create_app():
     # Create tables and admin user within app context
     with app.app_context():
         db.create_all()  # <-- This ensures new tables/columns are created if missing
-
+from sqlalchemy import text
+with app.app_context():
+    try:
+        db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN month INTEGER;"))
+    except Exception as e:
+        print("month column may already exist:", e)
+    try:
+        db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN year INTEGER;"))
+    except Exception as e:
+        print("year column may already exist:", e)
+    db.session.commit()
         from src.models.user import User, Role
         admin = User.query.filter_by(username="admin").first()
         if not admin:
