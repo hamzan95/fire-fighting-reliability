@@ -249,6 +249,7 @@ def add_inspection():
             notes=form.notes.data,
             user_id=current_user.id
         )
+        inspection.set_month_year()
         db.session.add(new_inspection)
         try:
             db.session.commit()
