@@ -1,39 +1,36 @@
+# src/models/substation.py
+from src.extensions import db # Ensure this import is correct based on your project structure
 from datetime import datetime
-from src.extensions import db
 
 class Substation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128), unique=True, nullable=False)
-    coverage_status = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    coverage_status = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    inspections = db.relationship('InspectionTest', backref='substation', lazy=True)
+
+    def __repr__(self):
+        return f'<Substation {self.name}>'
 
 class InspectionTest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    substation_id = db.Column(db.Integer, db.ForeignKey('substation.id'), nullable=False)
-    inspection_date = db.Column(db.Date, nullable=True)
+    # ADD ondelete='CASCADE' HERE
+    substation_id = db.Column(db.Integer, db.ForeignKey('substation.id', ondelete='CASCADE'), nullable=False)
+    inspection_date = db.Column(db.Date, nullable=False)
     testing_date = db.Column(db.Date, nullable=True)
-    status = db.Column(db.String(64), nullable=False)
+    inspection_status = db.Column(db.String(20), nullable=False)
+    testing_status = db.Column(db.String(20), nullable=True)
     notes = db.Column(db.Text)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    # --- ADDED: month and year for grouping/filtering ---
-    month = db.Column(db.Integer, nullable=False)
-    year = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
-    # --- ADDED: method to set month/year from date ---
-    def set_month_year(self):
-        date = self.inspection_date or self.testing_date
-        if date:
-            self.month = date.month
-            self.year = date.year
+    substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
+    user = db.relationship('User', backref=db.backref('inspections', lazy=True))
 
 class ReliabilityMetric(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    year = db.Column(db.Integer, nullable=False)
-    month = db.Column(db.Integer, nullable=True)
-    effective_reliability = db.Column(db.Float, nullable=False)
+    date = db.Column(db.Date, unique=True, nullable=False)
+    reliability_score = db.Column(db.Float, nullable=False)
     testing_compliance = db.Column(db.Float, nullable=False)
-    inspection_compliance = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    inspection_compliance = db.Column(db.Float)
+    coverage_ratio = db.Column(db.Float)
+    effective_reliability = db.Column(db.Float)
