@@ -17,7 +17,15 @@ def create_app():
 
     # Initialize extensions
     db.init_app(app)
-    
+     with app.app_context():
+        engine = sa.create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+        inspector = sa.inspect(engine)
+        # Replace "inspection_test" with your actual table name if different
+        if not inspector.has_table("inspection_test"):
+            db.create_all()
+            print("Initialized the database!")
+        else:
+            print("Database already contains the inspection_test table.")
     # Initialize Flask-Login
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
