@@ -39,31 +39,42 @@ def create_app():
     with app.app_context():
         db.create_all()  # <-- This ensures new tables are created if missing
 
-        # TEMPORARY: Add month/year columns if missing (safe to run multiple times)
+        # SAFE: Add month/year columns if missing (each in its own transaction)
         from sqlalchemy import text
-        # For inspection_test
+
+        # inspection_test table
         try:
             db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN month INTEGER;"))
+            db.session.commit()
             print("Added 'month' column to inspection_test.")
         except Exception as e:
+            db.session.rollback()
             print("month column may already exist or error (inspection_test):", e)
+
         try:
             db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN year INTEGER;"))
+            db.session.commit()
             print("Added 'year' column to inspection_test.")
         except Exception as e:
+            db.session.rollback()
             print("year column may already exist or error (inspection_test):", e)
-        # For reliability_metric
+
+        # reliability_metric table
         try:
             db.session.execute(text("ALTER TABLE reliability_metric ADD COLUMN year INTEGER;"))
+            db.session.commit()
             print("Added 'year' column to reliability_metric.")
         except Exception as e:
+            db.session.rollback()
             print("year column may already exist or error (reliability_metric):", e)
+
         try:
             db.session.execute(text("ALTER TABLE reliability_metric ADD COLUMN month INTEGER;"))
+            db.session.commit()
             print("Added 'month' column to reliability_metric.")
         except Exception as e:
+            db.session.rollback()
             print("month column may already exist or error (reliability_metric):", e)
-        db.session.commit()
 
         from src.models.user import User, Role
         admin = User.query.filter_by(username="admin").first()
