@@ -1,15 +1,104 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+# src/routes/main.py
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
-from datetime import datetime
-from collections import defaultdict
-import csv
-import io
+from datetime import datetime, date, timedelta
+from sqlalchemy import func, case, distinct
+from sqlalchemy.orm import joinedload  # Import joinedload for eager loading
 
 from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
-from src.models.user import User
-from src.forms.inspection_forms import InspectionTestForm
+from src.models.user import Role, User  # Ensure User is imported
+
 from src.forms.substation_forms import SubstationForm
+from src.forms.inspection_forms import InspectionTestForm  # Keep this import
+
+main_bp = Blueprint("main", __name__)
+
+@main_bp.route("/")
+@main_bp.route("/dashboard")
+@login_required
+def dashboard():
+    # Calculate current metrics
+    total_substations = Substation.query.count()
+    fully_covered = Substation.query.filter_by(coverage_status="Fully Covered").count()
+    partially_covered = Substation.query.filter_by(coverage_status="Partially Covered").count()
+
+    # These compliance metrics still count only "Inspected" and "Tested" specifically
+    inspected_substations_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.inspection_status == "Inspected").scalar()
+    tested_substations_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Tested").scalar()
+
+    # Handle division by zero for compliance ratios
+    if total_substations == 0:
+        coverage_ratio = 0
+        inspection_compliance = 0
+        testing_compliance = 0
+    else:
+        coverage_ratio = (fully_covered / total_substations) * 100
+        inspection_compliance = (inspected_substations_count / total_substations) * 100
+        testing_compliance = (tested_substations_count / total_substations) * 100
+
+    # Effective Reliability (assuming a formula, adjust if needed)
+    effective_reliability = (inspection_compliance + testing_compliance + coverage_ratio) / 3 if total_substations > 0 else 0
+
+    # Prepare data for Chart.js
+    coverage_data = {
+        "labels": ["Fully Covered", "Partially Covered", "Not Covered"],
+        "data": [fully_covered, partially_covered, total_substations - fully_covered - partially_covered]
+    }
+
+    # Inspection Status Distribution (modified for simplified chart view)
+    inspection_status_case = case(
+        (InspectionTest.inspection_status == "Inspected", "Inspected"),
+        else_="Not Inspected"
+    ).label("simplified_inspection_status")
+
+    inspection_status_counts = db.session.query(
+        inspection_status_case, func.count(InspectionTest.id)
+    ).group_by(inspection_status_case).all()
+    inspection_data_labels = [label for label, count in inspection_status_counts]
+    inspection_data_values = [count for label, count in inspection_status_counts]
+    total_inspection_records = db.session.query(func.count(InspectionTest.id)).filter(InspectionTest.inspection_status.isnot(None)).scalar() or 0
+
+    # Testing Status Distribution (modified for simplified chart view)
+    testing_status_case = case(
+        (InspectionTest.testing_status == "Tested", "Tested"),
+        else_="Not Tested"
+    ).label("simplified_testing_status")
+
+    testing_status_counts = db.session.query(
+        testing_status_case, func.count(InspectionTest.id)
+    ).group_by(testing_status_case).all()
+    testing_data_labels = [label for label, count in testing_status_counts]
+    testing_data_values = [count for label, count in testing_status_counts]
+    total_testing_records = db.session.query(func.count(InspectionTest.id)).filter(InspectionTest.testing_status.isnot(None)).scalar() or 0
+
+    # --- FIX: Always provide metrics values to template ---
+    latest_metric = ReliabilityMetric.query.order_by(ReliabilityMetric.created_at.desc()).first()
+    if latest_metric:
+        effective_reliability_metric = latest_metric.effective_reliability
+        testing_compliance_metric = latest_metric.testing_compliance
+        inspection_compliance_metric = latest_metric.inspection_compliance
+    else:
+        effective_reliability_metric = 0
+        testing_compliance_metric = 0
+        inspection_compliance_metric = 0
+
+    return render_template("dashboard.html",
+        total_substations=total_substations,
+        effective_reliability=effective_reliability_metric,
+        testing_compliance=testing_compliance_metric,
+        inspection_compliance=inspection_compliance_metric,
+        coverage_data=coverage_data,
+        inspection_data_labels=inspection_data_labels,
+        inspection_data_values=inspection_data_values,
+        testing_data_labels=testing_data_labels,
+        testing_data_values=testing_data_values,
+        total_inspection_records=total_inspection_records,
+        total_testing_records=total_testing_records
+    )
+
+# ... rest of your main.py code remains unchanged ...
 
 main_bp = Blueprint("main", __name__)
 
