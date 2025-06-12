@@ -92,6 +92,37 @@ def dashboard():
         total_inspection_records=total_inspection_records,
         total_testing_records=total_testing_records
     )
+@main_bp.route('/inspections/bulk_update', methods=['POST'])
+@login_required
+def bulk_update_inspections():
+    # Get selected substation IDs from the form
+    ids_str = request.form.get('selected_substation_ids', '')
+    if not ids_str:
+        flash('No substations selected for bulk update.', 'warning')
+        return redirect(url_for('main.inspections'))
+
+    ids = [int(i) for i in ids_str.split(',') if i.strip().isdigit()]
+    new_inspection_status = request.form.get('new_inspection_status')
+    new_testing_status = request.form.get('new_testing_status')
+
+    if not new_inspection_status and not new_testing_status:
+        flash('No new status selected for update.', 'warning')
+        return redirect(url_for('main.inspections'))
+
+    updated_count = 0
+    for substation_id in ids:
+        latest = InspectionTest.query.filter_by(substation_id=substation_id)\
+            .order_by(InspectionTest.inspection_date.desc().nullslast(), InspectionTest.testing_date.desc().nullslast()).first()
+        if latest:
+            if new_inspection_status:
+                latest.inspection_status = new_inspection_status
+            if new_testing_status:
+                latest.testing_status = new_testing_status
+            latest.set_month_year()
+            updated_count += 1
+    db.session.commit()
+    flash(f'Bulk updated {updated_count} substation records.', 'success')
+    return redirect(url_for('main.inspections'))
 
 @main_bp.route('/substations')
 @login_required
