@@ -5,7 +5,7 @@ from sqlalchemy import func, case, distinct
 from sqlalchemy.orm import joinedload
 import csv
 import io
-
+from collections import defaultdict
 from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
 from src.models.user import Role, User
