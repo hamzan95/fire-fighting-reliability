@@ -5,7 +5,6 @@ from flask import Flask
 from src.extensions import db, login_manager  # Import login_manager from extensions
 
 from src.routes.main import main_bp
-
 from src.routes.auth import auth_bp
 
 def create_app():
@@ -39,17 +38,21 @@ def create_app():
     # Create tables and admin user within app context
     with app.app_context():
         db.create_all()  # <-- This ensures new tables/columns are created if missing
-from sqlalchemy import text
-with app.app_context():
-    try:
-        db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN month INTEGER;"))
-    except Exception as e:
-        print("month column may already exist:", e)
-    try:
-        db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN year INTEGER;"))
-    except Exception as e:
-        print("year column may already exist:", e)
-    db.session.commit()
+
+        # TEMPORARY: Add month/year columns if missing (safe to run multiple times)
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN month INTEGER;"))
+            print("Added 'month' column to inspection_test.")
+        except Exception as e:
+            print("month column may already exist or error:", e)
+        try:
+            db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN year INTEGER;"))
+            print("Added 'year' column to inspection_test.")
+        except Exception as e:
+            print("year column may already exist or error:", e)
+        db.session.commit()
+
         from src.models.user import User, Role
         admin = User.query.filter_by(username="admin").first()
         if not admin:
@@ -66,4 +69,5 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
 
