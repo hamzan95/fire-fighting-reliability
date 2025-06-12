@@ -22,10 +22,16 @@ class InspectionTest(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-
     substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
     user = db.relationship('User', backref=db.backref('inspections', lazy=True))
+    month = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
 
+    def set_month_year(self):
+        date = self.inspection_date or self.testing_date
+        if date:
+            self.month = date.month
+            self.year = date.year
 class ReliabilityMetric(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, unique=True, nullable=False)
