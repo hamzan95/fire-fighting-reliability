@@ -280,6 +280,7 @@ def edit_inspection(inspection_id):
         inspection.testing_status = form.testing_status.data
         inspection.notes = form.notes.data
         try:
+            inspection.set_month_year()
             db.session.commit()
             flash("Inspection record updated successfully!", "success")
         except Exception as e:
