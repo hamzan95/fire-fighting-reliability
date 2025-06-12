@@ -1,17 +1,17 @@
-# src/routes/main.py
-
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
 from sqlalchemy import func, case, distinct
-from sqlalchemy.orm import joinedload  # Import joinedload for eager loading
+from sqlalchemy.orm import joinedload
+import csv
+import io
 
 from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
-from src.models.user import Role, User  # Ensure User is imported
+from src.models.user import Role, User
 
 from src.forms.substation_forms import SubstationForm
-from src.forms.inspection_forms import InspectionTestForm  # Keep this import
+from src.forms.inspection_forms import InspectionTestForm
 
 main_bp = Blueprint("main", __name__)
 
@@ -24,11 +24,9 @@ def dashboard():
     fully_covered = Substation.query.filter_by(coverage_status="Fully Covered").count()
     partially_covered = Substation.query.filter_by(coverage_status="Partially Covered").count()
 
-    # These compliance metrics still count only "Inspected" and "Tested" specifically
     inspected_substations_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.inspection_status == "Inspected").scalar()
     tested_substations_count = db.session.query(func.count(func.distinct(InspectionTest.substation_id))).filter(InspectionTest.testing_status == "Tested").scalar()
 
-    # Handle division by zero for compliance ratios
     if total_substations == 0:
         coverage_ratio = 0
         inspection_compliance = 0
@@ -38,16 +36,13 @@ def dashboard():
         inspection_compliance = (inspected_substations_count / total_substations) * 100
         testing_compliance = (tested_substations_count / total_substations) * 100
 
-    # Effective Reliability (assuming a formula, adjust if needed)
     effective_reliability = (inspection_compliance + testing_compliance + coverage_ratio) / 3 if total_substations > 0 else 0
 
-    # Prepare data for Chart.js
     coverage_data = {
         "labels": ["Fully Covered", "Partially Covered", "Not Covered"],
         "data": [fully_covered, partially_covered, total_substations - fully_covered - partially_covered]
     }
 
-    # Inspection Status Distribution (modified for simplified chart view)
     inspection_status_case = case(
         (InspectionTest.inspection_status == "Inspected", "Inspected"),
         else_="Not Inspected"
@@ -60,7 +55,6 @@ def dashboard():
     inspection_data_values = [count for label, count in inspection_status_counts]
     total_inspection_records = db.session.query(func.count(InspectionTest.id)).filter(InspectionTest.inspection_status.isnot(None)).scalar() or 0
 
-    # Testing Status Distribution (modified for simplified chart view)
     testing_status_case = case(
         (InspectionTest.testing_status == "Tested", "Tested"),
         else_="Not Tested"
@@ -73,7 +67,7 @@ def dashboard():
     testing_data_values = [count for label, count in testing_status_counts]
     total_testing_records = db.session.query(func.count(InspectionTest.id)).filter(InspectionTest.testing_status.isnot(None)).scalar() or 0
 
-    # --- FIX: Always provide metrics values to template ---
+    # Always provide metrics values to template
     latest_metric = ReliabilityMetric.query.order_by(ReliabilityMetric.created_at.desc()).first()
     if latest_metric:
         effective_reliability_metric = latest_metric.effective_reliability
@@ -84,7 +78,8 @@ def dashboard():
         testing_compliance_metric = 0
         inspection_compliance_metric = 0
 
-    return render_template("dashboard.html",
+    return render_template(
+        "dashboard.html",
         total_substations=total_substations,
         effective_reliability=effective_reliability_metric,
         testing_compliance=testing_compliance_metric,
@@ -96,32 +91,6 @@ def dashboard():
         testing_data_values=testing_data_values,
         total_inspection_records=total_inspection_records,
         total_testing_records=total_testing_records
-    )
-
-# ... rest of your main.py code remains unchanged ...
-
-main_bp = Blueprint("main", __name__)
-
-@main_bp.route('/')
-@login_required
-def dashboard():
-    substations = Substation.query.all()
-    inspections = InspectionTest.query.all()
-    total_substations = len(substations)
-    covered_substations = len([s for s in substations if s.coverage_status == 'Covered'])
-    coverage_percent = (covered_substations / total_substations) * 100 if total_substations else 0
-
-    total_inspections = len(inspections)
-    done_inspections = len([i for i in inspections if i.inspection_status == 'Inspected'])
-    inspection_compliance = (done_inspections / total_inspections) * 100 if total_inspections else 0
-
-    reliability_metrics = ReliabilityMetric.query.order_by(ReliabilityMetric.created_at.desc()).first()
-
-    return render_template(
-        'dashboard.html',
-        coverage_percent=coverage_percent,
-        inspection_compliance=inspection_compliance,
-        reliability_metrics=reliability_metrics
     )
 
 @main_bp.route('/substations')
@@ -184,7 +153,6 @@ def inspections():
         InspectionTest.testing_date.desc().nullslast()
     ).all()
 
-    # Group inspections by year and month for display
     grouped = defaultdict(lambda: defaultdict(list))
     years = set()
     for ins in inspections:
@@ -193,7 +161,6 @@ def inspections():
         grouped[y][m].append(ins)
         years.add(y)
 
-    # Your original logic for tested_substations and not_tested_substations
     tested_substations = []
     not_tested_substations = []
     substations = Substation.query.all()
@@ -390,4 +357,5 @@ def export_substations():
         as_attachment=True,
         download_name='substations.csv'
     )
+
 
