@@ -37,20 +37,32 @@ def create_app():
 
     # Create tables and admin user within app context
     with app.app_context():
-        db.create_all()  # <-- This ensures new tables/columns are created if missing
+        db.create_all()  # <-- This ensures new tables are created if missing
 
         # TEMPORARY: Add month/year columns if missing (safe to run multiple times)
         from sqlalchemy import text
+        # For inspection_test
         try:
             db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN month INTEGER;"))
             print("Added 'month' column to inspection_test.")
         except Exception as e:
-            print("month column may already exist or error:", e)
+            print("month column may already exist or error (inspection_test):", e)
         try:
             db.session.execute(text("ALTER TABLE inspection_test ADD COLUMN year INTEGER;"))
             print("Added 'year' column to inspection_test.")
         except Exception as e:
-            print("year column may already exist or error:", e)
+            print("year column may already exist or error (inspection_test):", e)
+        # For reliability_metric
+        try:
+            db.session.execute(text("ALTER TABLE reliability_metric ADD COLUMN year INTEGER;"))
+            print("Added 'year' column to reliability_metric.")
+        except Exception as e:
+            print("year column may already exist or error (reliability_metric):", e)
+        try:
+            db.session.execute(text("ALTER TABLE reliability_metric ADD COLUMN month INTEGER;"))
+            print("Added 'month' column to reliability_metric.")
+        except Exception as e:
+            print("month column may already exist or error (reliability_metric):", e)
         db.session.commit()
 
         from src.models.user import User, Role
@@ -69,5 +81,6 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
 
 
