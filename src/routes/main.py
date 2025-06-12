@@ -249,7 +249,6 @@ def add_inspection():
             notes=form.notes.data,
             user_id=current_user.id
         )
-        inspection.set_month_year()
         db.session.add(new_inspection)
         try:
             db.session.commit()
@@ -280,7 +279,6 @@ def edit_inspection(inspection_id):
         inspection.testing_status = form.testing_status.data
         inspection.notes = form.notes.data
         try:
-            inspection.set_month_year()
             db.session.commit()
             flash("Inspection record updated successfully!", "success")
         except Exception as e:
