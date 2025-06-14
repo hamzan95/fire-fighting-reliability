@@ -1,5 +1,4 @@
-# src/models/substation.py
-from src.extensions import db # Ensure this import is correct based on your project structure
+from src.extensions import db
 from datetime import datetime
 
 class Substation(db.Model):
@@ -13,24 +12,30 @@ class Substation(db.Model):
 
 class InspectionTest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # ADD ondelete='CASCADE' HERE
-    substation_id = db.Column(db.Integer, db.ForeignKey('substation.id', ondelete='CASCADE'), nullable=False)
+    substation_id = db.Column(db.Integer, db.ForeignKey('substation.id'), nullable=False)
     inspection_date = db.Column(db.Date, nullable=False)
-    testing_date = db.Column(db.Date, nullable=True)
+    testing_date = db.Column(db.Date, nullable=True)  # New field for testing date
     inspection_status = db.Column(db.String(20), nullable=False)
-    testing_status = db.Column(db.String(20), nullable=True)
+    testing_status = db.Column(db.String(20), nullable=True)  # New field for testing status
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Link to user who created the record
+    
     substation = db.relationship('Substation', backref=db.backref('inspections', lazy=True))
     user = db.relationship('User', backref=db.backref('inspections', lazy=True))
 
 class ReliabilityMetric(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, unique=True, nullable=False)
+    date = db.Column(db.Date, nullable=False) # This will now be the period_start_date
+    period_type = db.Column(db.String(10), nullable=False) # 'daily', 'monthly', 'yearly'
     reliability_score = db.Column(db.Float, nullable=False)
     testing_compliance = db.Column(db.Float, nullable=False)
-    inspection_compliance = db.Column(db.Float)
-    coverage_ratio = db.Column(db.Float)
-    effective_reliability = db.Column(db.Float)
+    inspection_compliance = db.Column(db.Float, nullable=False)
+    coverage_ratio = db.Column(db.Float, nullable=False)
+    effective_reliability = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('date', 'period_type', name='_date_period_type_uc'),)
+
+    def __repr__(self):
+        return f'<ReliabilityMetric {self.date} ({self.period_type})>'
