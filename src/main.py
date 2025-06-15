@@ -5,6 +5,9 @@ from src.routes.main import main_bp
 from src.routes.auth import auth_bp
 
 def create_app():
+   # In src/main.py, update the create_app function:
+
+def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fire_fighting_reliability_secret_key")
 
@@ -31,9 +34,60 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
 
-    # Create tables and admin user within app context
+    # Create tables and run migrations within app context
     with app.app_context():
         db.create_all()
+        
+        # Run database migration
+        try:
+            from sqlalchemy import text
+            # Check if period_type column exists and add it if not
+            result = db.session.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='reliability_metric' AND column_name='period_type'
+            """))
+            
+            if not result.fetchone():
+                print("Running database migration for period_type column...")
+                
+                # Add the period_type column
+                db.session.execute(text("""
+                    ALTER TABLE reliability_metric 
+                    ADD COLUMN period_type VARCHAR(10) DEFAULT 'daily'
+                """))
+                
+                # Update existing records
+                db.session.execute(text("""
+                    UPDATE reliability_metric 
+                    SET period_type = 'daily' 
+                    WHERE period_type IS NULL
+                """))
+                
+                # Make column NOT NULL
+                db.session.execute(text("""
+                    ALTER TABLE reliability_metric 
+                    ALTER COLUMN period_type SET NOT NULL
+                """))
+                
+                # Add unique constraint
+                try:
+                    db.session.execute(text("""
+                        ALTER TABLE reliability_metric 
+                        ADD CONSTRAINT _date_period_type_uc UNIQUE (date, period_type)
+                    """))
+                except:
+                    pass  # Constraint might already exist
+                
+                db.session.commit()
+                print("✅ Database migration completed!")
+            
+        except Exception as e:
+            print(f"Migration check failed (this is normal for SQLite): {e}")
+            # For SQLite or if migration fails, just continue
+            pass
+        
+        # Create admin user
         from src.models.user import User, Role
         admin = User.query.filter_by(username="admin").first()
         if not admin:
