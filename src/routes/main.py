@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
 from sqlalchemy import func, case, distinct
 from sqlalchemy.orm import joinedload # Import joinedload for eager loading
+import pandas as pd
 
 from src.extensions import db
 from src.models.substation import Substation, InspectionTest, ReliabilityMetric
@@ -40,6 +41,29 @@ def dashboard():
     # Effective Reliability (assuming a formula, adjust if needed)
     # This is a placeholder, you might have a more complex calculation
     effective_reliability = (inspection_compliance + testing_compliance + coverage_ratio) / 3 if total_substations > 0 else 0
+
+    # Store daily metric (only if there's data)
+    if total_substations > 0:
+        today = date.today()
+        metric = ReliabilityMetric.query.filter_by(date=today, period_type='daily').first()
+        if not metric:
+            metric = ReliabilityMetric(
+                date=today,
+                period_type='daily',
+                reliability_score=effective_reliability,
+                testing_compliance=testing_compliance,
+                inspection_compliance=inspection_compliance,
+                coverage_ratio=coverage_ratio,
+                effective_reliability=effective_reliability
+            )
+            db.session.add(metric)
+        else:
+            metric.reliability_score = effective_reliability
+            metric.testing_compliance = testing_compliance
+            metric.inspection_compliance = inspection_compliance
+            metric.coverage_ratio = coverage_ratio
+            metric.effective_reliability = effective_reliability
+        db.session.commit()
 
     # Prepare data for Chart.js
     
@@ -100,9 +124,6 @@ def dashboard():
                            total_inspection_records=total_inspection_records, # Pass for tooltip calculations
                            total_testing_records=total_testing_records) # Pass for tooltip calculations
 
-# ... rest of your main.py code ...
-
-
 @main_bp.route("/substations")
 @login_required
 def substations():
@@ -127,7 +148,6 @@ def substations():
             "created_at": sub.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }
         substations_with_status.append(sub_status)
-
 
     return render_template("substations.html", substations=substations_with_status, form=form)
 
@@ -193,7 +213,24 @@ def inspections():
     if not current_user.is_inspector() and not current_user.is_admin():
         flash("You do not have permission to view inspections.", "danger")
         return redirect(url_for("main.dashboard"))
+    
+    # NEW: Fetch all inspections and group them by substation, then by year and month
+    all_inspections = InspectionTest.query.order_by(InspectionTest.substation_id, InspectionTest.inspection_date.desc()).all()
+    
+    grouped_inspections = {}
+    for inspection in all_inspections:
+        substation_name = inspection.substation.name
+        inspection_year_month = inspection.inspection_date.strftime("%Y-%m") # e.g., "2023-10"
+        
+        if substation_name not in grouped_inspections:
+            grouped_inspections[substation_name] = {}
+        
+        if inspection_year_month not in grouped_inspections[substation_name]:
+            grouped_inspections[substation_name][inspection_year_month] = []
+            
+        grouped_inspections[substation_name][inspection_year_month].append(inspection)
 
+    # KEEP EXISTING: Also maintain the old structure for backward compatibility if needed
     all_substations = Substation.query.options(joinedload(Substation.inspections)).all()
 
     tested_substations = []
@@ -225,6 +262,7 @@ def inspections():
             not_tested_substations.append(sub_data)
 
     return render_template("inspections.html", 
+                           grouped_inspections=grouped_inspections,  # NEW: Pass grouped data
                            tested_substations=tested_substations,
                            not_tested_substations=not_tested_substations)
 
@@ -357,7 +395,6 @@ def bulk_update_inspections():
     
     return redirect(url_for("main.inspections"))
 
-
 @main_bp.route("/metrics")
 @login_required
 def metrics():
@@ -371,9 +408,7 @@ def metrics():
         flash("You do not have permission to view metrics.", "danger")
         return redirect(url_for("main.dashboard"))
 
-
-    # Weekly Trend (Last 12 Weeks)
-    # Cast date to DATE for proper grouping and ordering in PostgreSQL
+    # UPDATED: Weekly Trend (Last 12 Weeks) - filter by period_type='daily'
     weekly_metrics_raw = db.session.query(
         func.to_char(ReliabilityMetric.date, "YYYY-MM-DD").label("date"),
         ReliabilityMetric.reliability_score,
@@ -382,7 +417,8 @@ def metrics():
         ReliabilityMetric.coverage_ratio,
         ReliabilityMetric.effective_reliability
     ).filter(
-        ReliabilityMetric.date >= (date.today() - timedelta(weeks=12))
+        ReliabilityMetric.date >= (date.today() - timedelta(weeks=12)),
+        ReliabilityMetric.period_type == 'daily'
     ).order_by(ReliabilityMetric.date).all()
 
     weekly_metrics = []
@@ -396,8 +432,7 @@ def metrics():
             'effective_reliability': week_data.effective_reliability
         })
 
-    # Monthly Trend (Last 12 Months)
-    # Using func.to_char for PostgreSQL compatibility
+    # UPDATED: Monthly Trend (Last 12 Months) - filter by period_type='monthly'
     monthly_metrics_raw = db.session.query(
         func.to_char(ReliabilityMetric.date, "YYYY-MM").label("month"),
         func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
@@ -406,7 +441,8 @@ def metrics():
         func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
         func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
     ).filter(
-        ReliabilityMetric.date >= (date.today() - timedelta(days=30*12)) # Approximately 12 months
+        ReliabilityMetric.date >= (date.today() - timedelta(days=30*12)), # Approximately 12 months
+        ReliabilityMetric.period_type == 'monthly'
     ).group_by("month").order_by("month").all()
     
     monthly_metrics = []
@@ -420,8 +456,7 @@ def metrics():
             'avg_effective_reliability': month_data.avg_effective_reliability
         })
 
-    # Yearly Trend (Last 5 Years)
-    # Using func.to_char for PostgreSQL compatibility
+    # UPDATED: Yearly Trend (Last 5 Years) - filter by period_type='yearly'
     yearly_metrics_raw = db.session.query(
         func.to_char(ReliabilityMetric.date, "YYYY").label("year"),
         func.avg(ReliabilityMetric.reliability_score).label("avg_reliability"),
@@ -429,7 +464,10 @@ def metrics():
         func.avg(ReliabilityMetric.inspection_compliance).label("avg_inspection_compliance"),
         func.avg(ReliabilityMetric.coverage_ratio).label("avg_coverage_ratio"),
         func.avg(ReliabilityMetric.effective_reliability).label("avg_effective_reliability")
-    ).filter(ReliabilityMetric.date >= (date.today() - timedelta(days=365*5))).group_by("year").order_by("year").all()
+    ).filter(
+        ReliabilityMetric.date >= (date.today() - timedelta(days=365*5)),
+        ReliabilityMetric.period_type == 'yearly'
+    ).group_by("year").order_by("year").all()
     
     yearly_metrics = []
     for year_data in yearly_metrics_raw:
