@@ -4,8 +4,7 @@ from src.extensions import db, login_manager # Import login_manager from extensi
 from src.routes.main import main_bp
 from src.routes.auth import auth_bp
 
-def create_app():
-   # In src/main.py, update the create_app function:
+
 
 def create_app():
     app = Flask(__name__)
